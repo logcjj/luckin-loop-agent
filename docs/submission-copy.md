@@ -12,6 +12,6 @@
 
 后续可填写：
 
-- GitHub 仓库：待创建
-- Demo 在线地址：待部署或使用 GitHub Pages/本地演示说明
+- GitHub 仓库：https://github.com/logcjj/luckin-loop-agent
+- Demo 在线地址：https://logcjj.github.io/luckin-loop-agent/
 - 补充材料目录：`README.md`、`docs/solution-brief.md`、`docs/demo-walkthrough.md`、`docs/data-sample.md`、`research/research-notes.md`

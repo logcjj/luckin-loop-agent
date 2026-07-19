@@ -6,6 +6,9 @@
 
 2026 AI 先锋未来人才大赛 · 瑞幸咖啡命题参赛 Demo
 
+[![GitHub](https://img.shields.io/badge/GitHub-logcjj%2Fluckin--loop--agent-181717?style=for-the-badge&logo=github)](https://github.com/logcjj/luckin-loop-agent)
+[![Demo](https://img.shields.io/badge/Demo-GitHub%20Pages-17a76b?style=for-the-badge)](https://logcjj.github.io/luckin-loop-agent/)
+
 Vite · React · TypeScript · 本地规则 Agent · 无需任何 Key 即可运行
 
 </div>
@@ -78,6 +81,12 @@ npm run dev
 
 ```text
 http://localhost:5173/
+```
+
+GitHub Pages 地址：
+
+```text
+https://logcjj.github.io/luckin-loop-agent/
 ```
 
 生产构建：
