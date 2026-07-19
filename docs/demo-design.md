@@ -1,8 +1,8 @@
-# Luckin Loop Agent Demo 设计
+# 小鹿 CoffeePlan Demo 设计
 
 ## Demo 定位
 
-名称：Luckin Loop Agent
+名称：小鹿 CoffeePlan
 
 中文名：瑞幸意图增长智能体
 
