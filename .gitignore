@@ -1,5 +1,6 @@
 node_modules/
 dist/
+goal/
 .DS_Store
 .playwright-cli/
 *.log

@@ -101,7 +101,7 @@ function App() {
           <div className="brand-mark">鹿</div>
           <div>
             <strong>小鹿 CoffeePlan</strong>
-            <span>把今天这杯咖啡，规划到刚刚好</span>
+            <span>从一句需求，到一杯咖啡计划</span>
           </div>
         </div>
         <div className="top-actions">
@@ -150,8 +150,8 @@ function App() {
       <section className="chat-pane">
         <div className="chat-header">
           <p>一句话咖啡规划</p>
-          <h1>不是给菜单，是把今天这杯咖啡办成闭环。</h1>
-          <span>想喝什么、怎么买、何时再来，都由 Agent 串起来。</span>
+          <h1>从一句需求，生成可下单、可复购的咖啡计划。</h1>
+          <span>把口味、券包、门店、确认动作和复购策略串起来。</span>
         </div>
 
         <div className="chat-feed" aria-label="咖啡规划对话">

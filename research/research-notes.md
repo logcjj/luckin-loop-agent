@@ -47,7 +47,7 @@
 
 - 入口/注册门槛：旅行用户反馈 Luckin 下单依赖 App/小程序和手机号/支付宝链路，注册或支付流程可能卡住。[来源：Reddit travelchina 讨论](https://www.reddit.com/r/travelchina/comments/1nc90ep/ordering_at_luckin_coffe_doesnt_work/)
 - 优惠券与价格信任：用户对优惠券未自动使用、不同账号价格差异、退改补偿规则有投诉和舆论讨论。Agent 推荐不能只追转化，还要解释优惠和价格逻辑，建立“可信推荐”。[来源：App Store 评论页](https://apps.apple.com/cn/app/1296749505?platform=iphone&see-all=reviews)；[来源：黑猫投诉样例](https://tousu.sina.cn/complaint/view/17370789667)；[来源：中国新闻网陕西频道](https://www.shx.chinanews.com.cn/news/2025/0430/105084.html)
-- 场景决策复杂：咖啡消费包含时间、天气、工作日节奏、口味、门店距离、券、取餐方式、健康偏好等变量。普通推荐会把选择压力留给用户，Agent 应该把变量折叠成“此刻最合适的下一步”。
+- 场景决策复杂：咖啡消费包含时间、天气、工作日节奏、口味、门店距离、券、取餐方式、健康偏好等变量。瑞幸需要让 Agent 在这些变量里直接产出“此刻该推哪杯、用哪张券、走哪个门店路径”的可执行动作。
 
 ## 6. 参考 bcefghj 项目风格
 
