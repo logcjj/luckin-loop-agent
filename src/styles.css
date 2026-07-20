@@ -207,6 +207,13 @@ body:has(.xm-shell.phone-frame) {
   text-align: left;
 }
 
+.xm-session-list {
+  display: grid;
+  gap: 3px;
+  max-height: 178px;
+  overflow: auto;
+}
+
 .xm-session:hover,
 .xm-link:hover,
 .xm-session.active,
@@ -652,6 +659,150 @@ body:has(.xm-shell.phone-frame) {
   font-size: 12px;
 }
 
+.xm-order-sim {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+
+.xm-app-screen {
+  min-height: 438px;
+  background: #f5f7fb;
+}
+
+.xm-app-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  color: #fff;
+  background: var(--xm-blue);
+}
+
+.xm-app-head b {
+  font-size: 15px;
+}
+
+.xm-app-head span {
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgb(255 255 255 / 18%);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.xm-app-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.xm-app-body .xm-product {
+  width: min(190px, 76%);
+  margin-inline: auto;
+}
+
+.xm-app-body h3 {
+  margin: 0;
+  text-align: center;
+  font-size: 21px;
+}
+
+.xm-app-body > p {
+  color: var(--xm-sub);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.xm-searchbar {
+  border-radius: 14px;
+  padding: 11px 13px;
+  color: #697386;
+  background: #fff;
+  box-shadow: var(--xm-shadow);
+  font-size: 13px;
+}
+
+.xm-specs,
+.xm-coupon-ticket,
+.xm-store-ticket,
+.xm-pay-guard {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--xm-line);
+  border-radius: 16px;
+  padding: 15px;
+  background: #fff;
+  box-shadow: var(--xm-shadow);
+}
+
+.xm-specs span {
+  display: inline-flex;
+  width: max-content;
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #063f9f;
+  background: #eef5ff;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.xm-specs small,
+.xm-coupon-ticket p,
+.xm-pay-guard p,
+.xm-store-ticket span {
+  color: var(--xm-sub);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.xm-coupon-ticket {
+  background: linear-gradient(135deg, #fff7e0, #fff);
+  border-style: dashed;
+  border-color: #ffd98a;
+}
+
+.xm-coupon-ticket b {
+  color: #b45309;
+  font-size: 30px;
+}
+
+.xm-store-ticket {
+  text-align: center;
+  justify-items: center;
+}
+
+.xm-pay-guard {
+  border-color: #b8e6c4;
+  background: #f0fbf4;
+}
+
+.xm-pay-guard span {
+  color: var(--xm-blue);
+  font-weight: 900;
+}
+
+.xm-chain-sheet {
+  position: sticky;
+  bottom: 0;
+  margin: 0;
+  border-width: 1px 0 0;
+  border-radius: 18px 18px 0 0;
+  background: rgb(255 255 255 / 96%);
+  backdrop-filter: blur(14px);
+}
+
+.xm-chain-sheet p {
+  margin: 0;
+}
+
+.xm-chain-sheet strong {
+  color: var(--xm-blue);
+  font-size: 11px;
+}
+
 .xm-chain {
   display: grid;
   gap: 8px;
@@ -723,6 +874,41 @@ body:has(.xm-shell.phone-frame) {
   border-top: 1px solid var(--xm-line);
   padding: 6px 8px 8px;
   background: #fff;
+}
+
+@media (max-width: 430px) {
+  .xm-shell.phone-frame {
+    width: 100vw;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body:has(.xm-shell.phone-frame) {
+    background: #f7f7f8;
+  }
+
+  .xm-shell.phone-frame .xm-loc {
+    max-width: 135px;
+  }
+
+  .xm-source-grid,
+  .xm-score-row,
+  .xm-journal,
+  .xm-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .xm-modal {
+    align-items: end;
+    padding: 0;
+  }
+
+  .xm-modal-card {
+    max-height: 84dvh;
+    border-radius: 18px 18px 0 0;
+  }
 }
 
 .xm-tabbar button {
@@ -842,6 +1028,170 @@ body:has(.xm-shell.phone-frame) {
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.xm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(17 24 39 / 42%);
+}
+
+.xm-modal-card {
+  width: min(720px, 100%);
+  max-height: min(760px, 88vh);
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 28%);
+}
+
+.xm-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--xm-line);
+  padding: 14px 16px;
+}
+
+.xm-modal-head button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--xm-sub);
+  background: #f2f3f5;
+  font-size: 20px;
+}
+
+.xm-modal-body {
+  max-height: calc(min(760px, 88vh) - 61px);
+  overflow: auto;
+  padding: 16px;
+}
+
+.xm-modal-grid,
+.xm-mini-list {
+  display: grid;
+  gap: 10px;
+}
+
+.xm-notice,
+.xm-danger-note,
+.xm-mini-list > div,
+.xm-source-card,
+.xm-journal-card,
+.xm-field {
+  border: 1px solid var(--xm-line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.xm-notice {
+  border-color: #dce8ff;
+  background: #f5f9ff;
+}
+
+.xm-notice b,
+.xm-notice span,
+.xm-mini-list b,
+.xm-mini-list span,
+.xm-source-card b,
+.xm-source-card span,
+.xm-source-card p,
+.xm-field {
+  display: block;
+}
+
+.xm-notice span,
+.xm-mini-list span,
+.xm-source-card p,
+.xm-field input {
+  margin-top: 5px;
+  color: var(--xm-sub);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.xm-field input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.xm-danger-note {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #fed7aa;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.xm-source-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.xm-source-card span {
+  width: max-content;
+  margin-top: 5px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #063f9f;
+  background: #eef5ff;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.xm-score-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.xm-journal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.xm-journal .xm-notice {
+  grid-column: 1 / -1;
+}
+
+.xm-journal-card {
+  display: grid;
+  gap: 6px;
+}
+
+.xm-journal-card img,
+.xm-journal-card > div {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #eef1f5;
+}
+
+.xm-journal-card span {
+  color: var(--xm-sub);
+  font-size: 12px;
+}
+
+@media (max-width: 430px) {
+  .xm-source-grid,
+  .xm-score-row,
+  .xm-journal,
+  .xm-metrics {
+    grid-template-columns: 1fr;
+  }
 }
 
 * {

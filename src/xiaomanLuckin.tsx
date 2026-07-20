@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Coffee, MapPin, MessageSquareText, Monitor, Send, ShieldCheck, Smartphone, Store, Ticket } from "lucide-react";
-import { members, menuCatalog, scenarios } from "./data/demoData";
+import { adapterBlueprints, agentModules, dataConnectors, dataSources, experienceMetrics, members, menuCatalog, scenarios } from "./data/demoData";
 import { generateDecision } from "./logic/agent";
 import { buildLocalGuideCopy, requestGuideCopy, type GuideCopy } from "./logic/guide";
 import type { AgentDecision, Member } from "./types";
@@ -10,10 +10,29 @@ type RoleMode = "user" | "merchant";
 type Pane = "plan" | "map" | "orders" | "memory";
 type MobileTab = "chat" | Pane;
 type Phase = "idle" | "choices" | "plan" | "execute";
+type ModalKind = "settings" | "privacy" | "connectors" | "eval" | "journal" | null;
+type OrderStep = {
+  label: string;
+  screen: string;
+  observe: string;
+  action: string;
+  guardrail: string;
+};
+type CoffeeSession = {
+  id: string;
+  title: string;
+  memberId: string;
+  userText: string;
+  choice: string;
+  phase: Phase;
+  pane: Pane;
+  updatedAt: string;
+};
 type RailItem = {
   label: string;
   pane?: Pane;
   role?: RoleMode;
+  modal?: Exclude<ModalKind, null>;
   notice?: string;
 };
 
@@ -35,7 +54,7 @@ const railGroups: Array<{ title: string; items: RailItem[] }> = [
     items: [
       { label: "新用户零启动体验", notice: "新用户可以只说一句状态，小鹿会先问口味和取餐约束，再给候选方向。" },
       { label: "附近门店与优惠", pane: "map" },
-      { label: "咖啡手账 · 回忆册", pane: "memory" }
+      { label: "咖啡手账 · 回忆册", modal: "journal" }
     ]
   },
   {
@@ -43,7 +62,7 @@ const railGroups: Array<{ title: string; items: RailItem[] }> = [
     items: [
       { label: "导入咖啡记忆", pane: "memory" },
       { label: "越用越懂你", pane: "memory" },
-      { label: "可靠性评测", notice: "本轮评测只看三件事：有没有先引导、有没有支付前停止、有没有把真实数据和模拟数据说清楚。" }
+      { label: "可靠性评测", modal: "eval" }
     ]
   },
   {
@@ -53,17 +72,31 @@ const railGroups: Array<{ title: string; items: RailItem[] }> = [
   {
     title: "接入 · 设置",
     items: [
-      { label: "Qwen 模型设置", notice: "Qwen 通过本地代理读取环境变量，前端和仓库不会保存 API key。" },
-      { label: "隐私与授权", notice: "定位、会员、券包都需要用户明确授权；没有官方授权时只使用合成样本。" },
-      { label: "To-Agent 接入", pane: "orders" }
+      { label: "Qwen 模型设置", modal: "settings" },
+      { label: "隐私与授权", modal: "privacy" },
+      { label: "To-Agent 接入", modal: "connectors" }
     ]
   }
 ];
 
+const nowLabel = () => new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+
+function makeSession(seed: Partial<CoffeeSession> = {}): CoffeeSession {
+  return {
+    id: seed.id ?? `s-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    title: seed.title ?? "今天想喝什么",
+    memberId: seed.memberId ?? members[0].id,
+    userText: seed.userText ?? "",
+    choice: seed.choice ?? "",
+    phase: seed.phase ?? "idle",
+    pane: seed.pane ?? "plan",
+    updatedAt: seed.updatedAt ?? nowLabel()
+  };
+}
+
 export function XiaomanLuckinApp() {
-  const [view, setView] = useState<ViewMode>("desktop");
+  const [view, setView] = useState<ViewMode>(() => (typeof window !== "undefined" && window.innerWidth <= 700 ? "mobile" : "desktop"));
   const [role, setRole] = useState<RoleMode>("user");
-  const [memberId, setMemberId] = useState(members[0].id);
   const [pane, setPane] = useState<Pane>("plan");
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -72,14 +105,58 @@ export function XiaomanLuckinApp() {
   const [choice, setChoice] = useState("");
   const [step, setStep] = useState(0);
   const [railNotice, setRailNotice] = useState("");
+  const [modal, setModal] = useState<ModalKind>(null);
+  const [sessions, setSessions] = useState<CoffeeSession[]>(() => [
+    makeSession({ id: "s-new" }),
+    makeSession({
+      id: "s-memory-chen",
+      title: "陈晨的咖啡记忆",
+      memberId: members[0].id,
+      userText: "开会前想提神，别太甜，最好快取",
+      choice: "稳妥一点：生椰拿铁。",
+      phase: "plan",
+      pane: "memory",
+      updatedAt: "昨天"
+    })
+  ]);
+  const [activeSessionId, setActiveSessionId] = useState("s-new");
   const [guide, setGuide] = useState<GuideCopy>(() => buildLocalGuideCopy(members[0], generateDecision(members[0], scenarios[0], scenarios[0].text), false));
 
+  const activeSession = sessions.find((item) => item.id === activeSessionId) ?? sessions[0];
+  const memberId = activeSession?.memberId ?? members[0].id;
   const member = members.find((item) => item.id === memberId) ?? members[0];
   const scenario = scenarios[0];
   const decisionText = [userText, choice].filter(Boolean).join(" ") || scenario.text;
   const decision = useMemo(() => generateDecision(member, scenario, decisionText), [member, scenario, decisionText]);
   const choices = useMemo(() => buildChoices(decision), [decision]);
   const steps = useMemo(() => buildOrderSteps(decision), [decision]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px)");
+    const sync = () => {
+      if (media.matches) setView("mobile");
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (view === "mobile" && mobileTab === "memory") {
+      setMobileTab(phase === "idle" ? "chat" : "plan");
+    }
+  }, [view, mobileTab, phase]);
+
+  useEffect(() => {
+    if (!activeSession) return;
+    setUserText(activeSession.userText);
+    setChoice(activeSession.choice);
+    setPhase(activeSession.phase);
+    setPane(activeSession.pane);
+    setMobileTab(activeSession.pane === "plan" && activeSession.phase === "idle" ? "chat" : activeSession.pane);
+    setStep(0);
+    setRailNotice("");
+  }, [activeSessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +200,13 @@ export function XiaomanLuckinApp() {
     setMobileTab("chat");
     setStep(0);
     setRailNotice("");
+    saveActiveSession({
+      title: text.length > 18 ? `${text.slice(0, 18)}...` : text,
+      userText: text,
+      choice: "",
+      phase: "choices",
+      pane: "plan"
+    });
   }
 
   function chooseDirection(value: string) {
@@ -130,6 +214,12 @@ export function XiaomanLuckinApp() {
     setPhase("plan");
     setPane("plan");
     setMobileTab("plan");
+    saveActiveSession({
+      title: value.replace(/^.*?：/, "").split("。")[0] || "已确认咖啡方案",
+      choice: value,
+      phase: "plan",
+      pane: "plan"
+    });
   }
 
   function startExecute() {
@@ -138,9 +228,13 @@ export function XiaomanLuckinApp() {
     setPane("orders");
     setMobileTab("orders");
     setStep(0);
+    saveActiveSession({ phase: "execute", pane: "orders" });
   }
 
   function startNew() {
+    const next = makeSession();
+    setSessions((items) => [next, ...items]);
+    setActiveSessionId(next.id);
     setInput("");
     setUserText("");
     setChoice("");
@@ -153,9 +247,14 @@ export function XiaomanLuckinApp() {
 
   function handleRailItem(item: RailItem) {
     if (item.role) setRole(item.role);
+    if (item.modal) {
+      setModal(item.modal);
+      return;
+    }
     if (item.pane) {
       setPane(item.pane);
       setMobileTab(item.pane);
+      saveActiveSession({ pane: item.pane });
     }
     if (item.notice) {
       setRailNotice(item.notice);
@@ -163,10 +262,33 @@ export function XiaomanLuckinApp() {
     }
   }
 
+  function switchMember(nextMemberId: string) {
+    saveActiveSession({ memberId: nextMemberId });
+  }
+
+  function saveActiveSession(patch: Partial<CoffeeSession>) {
+    setSessions((items) => items.map((item) => (
+      item.id === activeSessionId
+        ? { ...item, ...patch, updatedAt: nowLabel() }
+        : item
+    )));
+  }
+
+  function openSession(sessionId: string) {
+    setActiveSessionId(sessionId);
+    setInput("");
+  }
+
+  function changePane(nextPane: Pane) {
+    setPane(nextPane);
+    setMobileTab(nextPane);
+    saveActiveSession({ pane: nextPane });
+  }
+
   return (
     <div className={`xm-shell ${view === "mobile" ? "m-mobile phone-frame" : "m-desktop"} role-${role}`}>
-      <Topbar member={member} view={view} role={role} setView={setView} setRole={setRole} />
-      <Rail member={member} phase={phase} decision={decision} onNew={startNew} onMember={setMemberId} onPane={setPane} onItem={handleRailItem} />
+      <Topbar member={member} view={view} role={role} setView={setView} setRole={setRole} openModal={setModal} />
+      <Rail member={member} sessions={sessions} activeSessionId={activeSessionId} phase={phase} decision={decision} onNew={startNew} onOpenSession={openSession} onMember={switchMember} onPane={changePane} onItem={handleRailItem} />
       <main className="xm-center">
         {role === "merchant" ? (
           <MerchantCenter decision={decision} member={member} onBack={() => setRole("user")} />
@@ -207,23 +329,25 @@ export function XiaomanLuckinApp() {
           </>
         )}
       </main>
-      <Canvas role={role} pane={pane} setPane={setPane} phase={phase} decision={decision} member={member} choices={choices} steps={steps} step={step} onChoose={chooseDirection} onExecute={startExecute} />
+      <Canvas role={role} pane={pane} setPane={changePane} phase={phase} decision={decision} member={member} choices={choices} steps={steps} step={step} onChoose={chooseDirection} onExecute={startExecute} />
       <nav className="xm-tabbar">
         <button className={mobileTab === "chat" ? "active" : ""} onClick={() => setMobileTab("chat")}><MessageSquareText size={19} /><span>对话</span></button>
-        <button className={mobileTab === "plan" ? "active" : ""} onClick={() => setMobileTab("plan")}><Coffee size={19} /><span>方案</span></button>
-        <button className={mobileTab === "map" ? "active" : ""} onClick={() => setMobileTab("map")}><MapPin size={19} /><span>门店</span></button>
-        <button className={mobileTab === "orders" ? "active" : ""} onClick={() => setMobileTab("orders")}><Ticket size={19} /><span>订单</span></button>
+        <button className={mobileTab === "plan" ? "active" : ""} onClick={() => changePane("plan")}><Coffee size={19} /><span>方案</span></button>
+        <button className={mobileTab === "map" ? "active" : ""} onClick={() => changePane("map")}><MapPin size={19} /><span>门店</span></button>
+        <button className={mobileTab === "orders" ? "active" : ""} onClick={() => changePane("orders")}><Ticket size={19} /><span>订单</span></button>
       </nav>
+      <XiaomanModal modal={modal} onClose={() => setModal(null)} member={member} decision={decision} />
     </div>
   );
 }
 
-function Topbar({ member, view, role, setView, setRole }: {
+function Topbar({ member, view, role, setView, setRole, openModal }: {
   member: Member;
   view: ViewMode;
   role: RoleMode;
   setView: (value: ViewMode) => void;
   setRole: (value: RoleMode) => void;
+  openModal: (value: ModalKind) => void;
 }) {
   return (
     <header className="xm-topbar">
@@ -239,7 +363,7 @@ function Topbar({ member, view, role, setView, setRole }: {
         <button className={role === "user" ? "active" : ""} onClick={() => setRole("user")}>用户</button>
         <button className={role === "merchant" ? "active" : ""} onClick={() => setRole("merchant")}>商家</button>
       </div>
-      <button className="xm-pill">Qwen 可选</button>
+      <button className="xm-pill" onClick={() => openModal("settings")}>Qwen 可选</button>
       <div className="xm-view">
         <button className={view === "mobile" ? "active" : ""} onClick={() => setView("mobile")}><Smartphone size={14} />手机</button>
         <button className={view === "desktop" ? "active" : ""} onClick={() => setView("desktop")}><Monitor size={14} />电脑</button>
@@ -248,11 +372,14 @@ function Topbar({ member, view, role, setView, setRole }: {
   );
 }
 
-function Rail({ member, phase, decision, onNew, onMember, onPane, onItem }: {
+function Rail({ member, sessions, activeSessionId, phase, decision, onNew, onOpenSession, onMember, onPane, onItem }: {
   member: Member;
+  sessions: CoffeeSession[];
+  activeSessionId: string;
   phase: Phase;
   decision: AgentDecision;
   onNew: () => void;
+  onOpenSession: (id: string) => void;
   onMember: (id: string) => void;
   onPane: (pane: Pane) => void;
   onItem: (item: RailItem) => void;
@@ -261,10 +388,17 @@ function Rail({ member, phase, decision, onNew, onMember, onPane, onItem }: {
     <aside className="xm-rail">
       <button className="xm-new" onClick={onNew}>＋ 新的咖啡</button>
       <div className="xm-rail-title">会话历史</div>
-      <button className="xm-session active" onClick={() => onPane("plan")}>
-        <b>{phase === "idle" ? "今天想喝什么" : decision.recommendation.name}</b>
-        <span>{phase === "choices" ? "等待选择方向" : `${decision.selectedStore.pickupEtaMinutes} 分钟取餐`}</span>
-      </button>
+      <div className="xm-session-list">
+        {sessions.map((session) => {
+          const sessionMember = members.find((item) => item.id === session.memberId) ?? member;
+          return (
+            <button key={session.id} className={session.id === activeSessionId ? "xm-session active" : "xm-session"} onClick={() => onOpenSession(session.id)}>
+              <b>{session.title || (phase === "idle" ? "今天想喝什么" : decision.recommendation.name)}</b>
+              <span>{sessionMember.city} · {session.phase === "choices" ? "等待选择方向" : session.phase === "execute" ? "执行到支付前" : session.updatedAt}</span>
+            </button>
+          );
+        })}
+      </div>
       <button className="xm-session" onClick={() => onPane("memory")}>
         <b>{member.name} 的咖啡记忆</b>
         <span>{member.city} · {member.lifecycleGoal}</span>
@@ -374,7 +508,7 @@ function Canvas({ role, pane, setPane, phase, decision, member, choices, steps, 
   decision: AgentDecision;
   member: Member;
   choices: ReturnType<typeof buildChoices>;
-  steps: string[];
+  steps: OrderStep[];
   step: number;
   onChoose: (value: string) => void;
   onExecute: () => void;
@@ -409,7 +543,7 @@ function MobilePane({ tab, phase, decision, member, choices, steps, step, onChoo
   decision: AgentDecision;
   member: Member;
   choices: ReturnType<typeof buildChoices>;
-  steps: string[];
+  steps: OrderStep[];
   step: number;
   onChoose: (value: string) => void;
   onExecute: () => void;
@@ -463,7 +597,7 @@ function MerchantCanvasPane({ pane, decision, member, step, steps }: {
   decision: AgentDecision;
   member: Member;
   step: number;
-  steps: string[];
+  steps: OrderStep[];
 }) {
   if (pane === "map") {
     return (
@@ -480,7 +614,7 @@ function MerchantCanvasPane({ pane, decision, member, step, steps }: {
       <article className="xm-card">
         <h2>执行边界看板</h2>
         <p>GUI-Agent 只负责演示观察、点击、校验、停在支付前；真实支付必须交回官方收银台。</p>
-        <div className="xm-chain"><b>当前链路</b><meter min={0} max={steps.length - 1} value={step} /><p>{steps[Math.min(step, steps.length - 1)]}</p></div>
+        <div className="xm-chain"><b>当前链路</b><meter min={0} max={steps.length - 1} value={step} /><p>{steps[Math.min(step, steps.length - 1)]?.label}</p></div>
       </article>
     );
   }
@@ -501,6 +635,140 @@ function MerchantCanvasPane({ pane, decision, member, step, steps }: {
       <div className="xm-line"><b>商品</b><span>{decision.recommendation.name} · {decision.recommendation.tags.join(" / ")}</span></div>
       <div className="xm-line"><b>券包</b><span>{decision.couponPlan.explanation}</span></div>
     </article>
+  );
+}
+
+function XiaomanModal({ modal, onClose, member, decision }: {
+  modal: ModalKind;
+  onClose: () => void;
+  member: Member;
+  decision: AgentDecision;
+}) {
+  if (!modal) return null;
+  const titles: Record<Exclude<ModalKind, null>, string> = {
+    settings: "模型设置",
+    privacy: "隐私与授权",
+    connectors: "数据接入",
+    eval: "可靠性评测",
+    journal: "咖啡手账"
+  };
+  return (
+    <div className="xm-modal" role="dialog" aria-modal="true">
+      <div className="xm-modal-card">
+        <header className="xm-modal-head">
+          <b>{titles[modal]}</b>
+          <button onClick={onClose} aria-label="关闭">×</button>
+        </header>
+        <div className="xm-modal-body">
+          {modal === "settings" && <SettingsPanel />}
+          {modal === "privacy" && <PrivacyPanel member={member} />}
+          {modal === "connectors" && <ConnectorsPanel />}
+          {modal === "eval" && <EvalPanel decision={decision} />}
+          {modal === "journal" && <JournalPanel member={member} decision={decision} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPanel() {
+  return (
+    <section className="xm-modal-grid">
+      <div className="xm-notice">
+        <b>Qwen 只走本地代理</b>
+        <span>前端不会保存 API key。服务端读取 `DASHSCOPE_API_KEY` 或 `QWEN_API_KEY`，未配置时自动回落本地引导。</span>
+      </div>
+      <label className="xm-field">Base URL<input readOnly value="https://coding.dashscope.aliyuncs.com/v1" /></label>
+      <label className="xm-field">模型<input readOnly value="qwen-plus / 可通过 QWEN_MODEL 覆盖" /></label>
+      <label className="xm-field">Key 状态<input readOnly value="仅环境变量读取，仓库不落盘" /></label>
+      <div className="xm-mini-list">
+        {agentModules.map((item) => (
+          <div key={item.id}><b>{item.name}</b><span>{item.guardrail}</span></div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PrivacyPanel({ member }: { member: Member }) {
+  return (
+    <section className="xm-modal-grid">
+      <div className="xm-notice">
+        <b>默认最小授权</b>
+        <span>本 demo 只使用合成会员样本和本轮会话状态；真实会员、券包、支付必须走瑞幸官方授权。</span>
+      </div>
+      <div className="xm-mini-list">
+        {member.consentScopes.map((scope) => <div key={scope}><b>{scope}</b><span>会话级使用，可撤回，不保存精确轨迹。</span></div>)}
+      </div>
+      <div className="xm-danger-note">禁止抓包、代付、扣券或声明真实库存；自动执行必须停在支付前。</div>
+    </section>
+  );
+}
+
+function ConnectorsPanel() {
+  return (
+    <section className="xm-modal-grid">
+      <div className="xm-source-grid">
+        {dataSources.map((source) => (
+          <article key={source.id} className="xm-source-card">
+            <b>{source.name}</b>
+            <span>{source.kind}</span>
+            <p>{source.evidence}</p>
+          </article>
+        ))}
+      </div>
+      <div className="xm-mini-list">
+        {adapterBlueprints.map((adapter) => (
+          <div key={adapter.id}><b>{adapter.name}</b><span>{adapter.status} · {adapter.uiDisclosure}</span></div>
+        ))}
+      </div>
+      <div className="xm-mini-list">
+        {dataConnectors.map((connector) => (
+          <div key={connector.id}><b>{connector.name}</b><span>{connector.status} · {connector.permissionBoundary}</span></div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EvalPanel({ decision }: { decision: AgentDecision }) {
+  return (
+    <section className="xm-modal-grid">
+      <div className="xm-score-row">
+        {experienceMetrics.map((metric) => (
+          <div key={metric.label} className="xm-metric">
+            <b>{metric.value}</b>
+            <span>{metric.label}</span>
+            <small>{metric.delta} · {metric.note}</small>
+          </div>
+        ))}
+      </div>
+      <div className="xm-mini-list">
+        {decision.guardrails.map((item) => <div key={item}><b>护栏通过</b><span>{item}</span></div>)}
+      </div>
+      <div className="xm-notice"><b>评测口径</b><span>不看话术多漂亮，只看是否先引导、是否说明真实/模拟边界、是否停在支付前。</span></div>
+    </section>
+  );
+}
+
+function JournalPanel({ member, decision }: { member: Member; decision: AgentDecision }) {
+  return (
+    <section className="xm-journal">
+      {member.recentOrders.map((order) => {
+        const product = menuCatalog.find((item) => item.id === order.productId);
+        return (
+          <article key={`${order.product}-${order.daysAgo}`} className="xm-journal-card">
+            {product?.imageUrl ? <img src={product.imageUrl} alt={product.officialName ?? product.name} /> : <div>咖啡</div>}
+            <b>{order.product}</b>
+            <span>{order.daysAgo} 天前 · {order.storeName ?? member.city} · {order.temperature}/{order.sugar}</span>
+          </article>
+        );
+      })}
+      <article className="xm-notice">
+        <b>本轮会被记住</b>
+        <span>{decision.recommendation.name}、{decision.recommendation.temperature}/{decision.recommendation.sugar}、{decision.selectedStore.name}、支付前停止结果。</span>
+      </article>
+    </section>
   );
 }
 
@@ -539,10 +807,11 @@ function StorePane({ decision }: { decision: AgentDecision }) {
 function OrderPane({ phase, decision, steps, step, onExecute }: {
   phase: Phase;
   decision: AgentDecision;
-  steps: string[];
+  steps: OrderStep[];
   step: number;
   onExecute: () => void;
 }) {
+  const active = steps[Math.min(step, steps.length - 1)];
   if (phase !== "execute") {
     return (
       <article className="xm-card">
@@ -554,16 +823,63 @@ function OrderPane({ phase, decision, steps, step, onExecute }: {
   }
 
   return (
-    <article className="xm-card">
-      <div className="xm-phone-mini">
-        <ProductImage decision={decision} />
-        <b>{decision.recommendation.name}</b>
-        <span>{steps[step]}</span>
+    <article className="xm-card xm-order-sim">
+      <div className="xm-app-screen">
+        <div className="xm-app-head">
+          <b>luckin coffee</b>
+          <span>{active.screen}</span>
+        </div>
+        <div className="xm-app-body">
+          {active.screen === "菜单" && (
+            <>
+              <div className="xm-searchbar">搜索 {decision.recommendation.name}</div>
+              <ProductImage decision={decision} />
+            </>
+          )}
+          {active.screen === "商品" && (
+            <>
+              <ProductImage decision={decision} />
+              <h3>{decision.recommendation.name}</h3>
+              <p>{decision.recommendation.reason}</p>
+            </>
+          )}
+          {active.screen === "规格" && (
+            <div className="xm-specs">
+              <b>规格确认</b>
+              <span>{decision.recommendation.temperature}</span>
+              <span>{decision.recommendation.sugar}</span>
+              <small>按偏好自动预选，支付前仍可手动改</small>
+            </div>
+          )}
+          {active.screen === "优惠" && (
+            <div className="xm-coupon-ticket">
+              <span>{decision.couponPlan.couponName}</span>
+              <b>-¥{decision.couponPlan.discount}</b>
+              <p>{decision.couponPlan.explanation}</p>
+            </div>
+          )}
+          {active.screen === "门店" && (
+            <div className="xm-store-ticket">
+              <MapPin size={22} />
+              <b>{decision.selectedStore.name}</b>
+              <span>{decision.selectedStore.distanceMeters}m · ETA {decision.selectedStore.pickupEtaMinutes} 分钟</span>
+            </div>
+          )}
+          {active.screen === "确认" && (
+            <div className="xm-pay-guard">
+              <b>支付前确认</b>
+              <span>模拟到手 ¥{decision.couponPlan.finalPrice}</span>
+              <p>已停止在官方收银前。本 demo 不创建真实订单、不扣款、不扣券。</p>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="xm-chain">
+      <div className="xm-chain xm-chain-sheet">
         <b>{step >= steps.length - 1 ? "支付前停止" : "执行链路运行中"}</b>
         <meter min={0} max={steps.length - 1} value={step} />
-        <p>{steps[step]}</p>
+        <p><strong>Observe</strong> {active.observe}</p>
+        <p><strong>Action</strong> {active.action}</p>
+        <p><strong>Guardrail</strong> {active.guardrail}</p>
       </div>
     </article>
   );
@@ -604,14 +920,49 @@ function buildChoices(decision: AgentDecision) {
   }));
 }
 
-function buildOrderSteps(decision: AgentDecision) {
+function buildOrderSteps(decision: AgentDecision): OrderStep[] {
   return [
-    "打开官方 App 点单入口模拟",
-    `搜索 ${decision.recommendation.name}`,
-    `选择 ${decision.recommendation.temperature} / ${decision.recommendation.sugar}`,
-    `使用 ${decision.couponPlan.couponName}`,
-    `确认 ${decision.selectedStore.name}`,
-    "生成官方 App 交接入口",
-    "支付前停止，等待用户自己确认"
+    {
+      label: "打开官方 App 点单入口模拟",
+      screen: "菜单",
+      observe: "首页可见菜单搜索和官方 App 入口。",
+      action: `聚焦搜索框，输入 ${decision.recommendation.name}。`,
+      guardrail: "只操作本地模拟器，不触碰真实 App 登录态。"
+    },
+    {
+      label: `搜索 ${decision.recommendation.name}`,
+      screen: "商品",
+      observe: `搜索结果出现 ${decision.recommendation.name} 和官方菜单图片。`,
+      action: "打开商品详情，读取口味、温度和价格模拟字段。",
+      guardrail: "价格、库存和门店 ETA 均标记为 demo 估算。"
+    },
+    {
+      label: `选择 ${decision.recommendation.temperature} / ${decision.recommendation.sugar}`,
+      screen: "规格",
+      observe: "规格页可见温度、甜度和偏好说明。",
+      action: `预选 ${decision.recommendation.temperature}、${decision.recommendation.sugar}。`,
+      guardrail: "支付前用户可修改，不自动提交。"
+    },
+    {
+      label: `使用 ${decision.couponPlan.couponName}`,
+      screen: "优惠",
+      observe: `券包中可见 ${decision.couponPlan.couponName}。`,
+      action: `应用优惠，模拟到手价变为 ¥${decision.couponPlan.finalPrice}。`,
+      guardrail: "不扣真实券，不承诺真实到账价格。"
+    },
+    {
+      label: `确认 ${decision.selectedStore.name}`,
+      screen: "门店",
+      observe: `门店页显示 ${decision.selectedStore.distanceMeters}m 和 ETA ${decision.selectedStore.pickupEtaMinutes} 分钟。`,
+      action: "选择候选首店，并露出排队/库存风险。",
+      guardrail: "真实取餐门店必须在官方 App 内二次确认。"
+    },
+    {
+      label: "支付前停止，等待用户自己确认",
+      screen: "确认",
+      observe: "页面进入收银前确认态。",
+      action: "停止自动执行，交还给用户。",
+      guardrail: "不创建真实订单、不扣款、不扣券。"
+    }
   ];
 }
