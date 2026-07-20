@@ -317,7 +317,28 @@
 
 ## Final Review 2: 小满底座最终审查
 
-- 状态：pending
+- 状态：completed
+- 可验证目标：
+  - 从 C 端体验、手机端、商家端、执行护栏、真实数据边界、代码质量、文档一致性和安全性做最后审查。
+  - 修复审查中发现的口径不一致、旧壳残留或功能缺口。
+  - 完成后提交最终代码，并将本轮 goal 标记为完成/归档。
+- 完成记录：
+  - 入口审查：`src/main.tsx` 只挂载 `XiaomanLuckinApp`，旧 CoffeePlan 工作台不再渲染。
+  - 旧壳清理：`src/styles.css` 删除 `.product-shell`、`.right-canvas`、`.hero-panel`、`.growth-layout` 等 3700+ 行旧工作台 CSS，样式文件收敛为当前 `.xm-*` 小满底座和全局 reset；生产 CSS 从约 64.6 kB 降到 16.6 kB。
+  - 真实性修复：在聊天区和门店 pane 新增“门店怎么选”授权卡。用户主动点击“用附近门店”才调用 Browser Geolocation API；成功后显示本轮附近排序，不保存精确坐标；拒绝或点击“用常购门店”后显示常购门店兜底。
+  - 文档一致性修复：更新 `README.md`、`docs/solution-brief.md`、`docs/demo-walkthrough.md`、`docs/demo-design.md`、`docs/submission-copy.md`，把旧的 FlowNav/画像执行数据 tab/不回显用户输入/左侧手机切换等口径改为当前真实实现：左侧会话与生活入口、中间大聊天、右侧方案/门店/订单/记忆、设置/隐私/数据/评测弹层、用户消息可显示、右上角切手机。
+  - 桌面 C 端验证：Playwright 默认打开为小满式三栏；左侧有新的咖啡、会话历史、生活、记忆·进化、商家、接入·设置；中间为空聊天起手；右侧为空方案等待态。
+  - 对话验证：输入“开会前有点困，想喝提神的，别太甜”后，页面显示用户消息、定位选择卡和“稳妥一点 / 轻一点 / 快一点”三个候选方向；没有立刻锁定单一推荐。
+  - 方案验证：点击“稳妥一点”后展示生椰拿铁、Luckin Coffee US official menu 官方图片、模拟到手价、门店、优惠和官方 App/Menu/Stores 链接。
+  - 定位验证：点击“用常购门店”后显示“已切到常购门店兜底：上海静安嘉里中心店。不读取实时位置。”；实现中浏览器定位失败也会走同一 fallback。
+  - 手机验证：切到手机后显示明确手机外框和 bottom tab；新建会话再切手机时默认是聊天起手，不是方案页或桌面缩窄版。
+  - 手机执行验证：在手机方案页点击“执行点单模拟”后进入 luckin coffee App-like 模拟器，自动推进到“支付前确认”，链路浮层显示 Observe、Action、Guardrail，最终文案为“本 demo 不创建真实订单、不扣款、不扣券”。
+  - 390px 响应式验证：Playwright resize 到 390x844 后，`bodyScroll === bodyClient === 390`，`shellScroll === shellClient === 390`，左栏/右栏隐藏，底部 tabbar 显示为 grid。
+  - 弹层验证：Qwen 设置弹层显示“前端不会保存 API key”“仅环境变量读取”；To-Agent 接入弹层显示 Luckin Coffee US 官方菜单、App/Stores、Browser Geolocation、synthetic fixtures、blocked private APIs 和 adapter 蓝图。
+  - 商家端验证：点击“商家”后中间主区变为“上海 咖啡需求参谋”，展示方案接受率、取餐稳定度、复购缩短；右侧为经营方案，不再是用户点单聊天。
+  - 安全与质量验证：`npm run build` 通过；`git diff --check` 通过；`npm audit --audit-level=high` 结果 `found 0 vulnerabilities`；Playwright console warning/error 均为 0。
+  - 密钥与旧口径扫描：`rg -n "sk-sp|b948a03e0|ac044d5a95f2625171b379b"` 无命中；扫描 `FlowNav`、`product-shell`、`right-canvas`、`模拟支付`、`真实订单已创建` 等旧/危险口径无命中。
+  - 自信检查：本轮最终审查发现的两个真实问题（文档旧口径、旧壳 CSS 残留）已修复；新增定位授权/fallback 补齐了真实性缺口；桌面、手机、商家、弹层、执行护栏、构建、安全和敏感信息扫描均通过。本 goal 已达到完成标准，标记为 completed/archived。
 - 可验证目标：
   - 对照用户最新目标逐项审计：旧项目是否真正抛弃、小满底座是否成为主结构、用户端/商家端/手机端/执行端/设置与数据接入是否完整。
   - 从 C 端体验、移动端、代码质量、安全合规、真实数据边界、文档一致性角度做最大 review。

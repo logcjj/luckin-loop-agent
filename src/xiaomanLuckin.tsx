@@ -11,6 +11,7 @@ type Pane = "plan" | "map" | "orders" | "memory";
 type MobileTab = "chat" | Pane;
 type Phase = "idle" | "choices" | "plan" | "execute";
 type ModalKind = "settings" | "privacy" | "connectors" | "eval" | "journal" | null;
+type LocationMode = "idle" | "nearby" | "fallback" | "blocked";
 type OrderStep = {
   label: string;
   screen: string;
@@ -106,6 +107,7 @@ export function XiaomanLuckinApp() {
   const [step, setStep] = useState(0);
   const [railNotice, setRailNotice] = useState("");
   const [modal, setModal] = useState<ModalKind>(null);
+  const [locationMode, setLocationMode] = useState<LocationMode>("idle");
   const [sessions, setSessions] = useState<CoffeeSession[]>(() => [
     makeSession({ id: "s-new" }),
     makeSession({
@@ -293,7 +295,7 @@ export function XiaomanLuckinApp() {
         {role === "merchant" ? (
           <MerchantCenter decision={decision} member={member} onBack={() => setRole("user")} />
         ) : view === "mobile" && mobileTab !== "chat" ? (
-          <MobilePane tab={mobileTab} phase={phase} decision={decision} member={member} choices={choices} steps={steps} step={step} onChoose={chooseDirection} onExecute={startExecute} />
+          <MobilePane tab={mobileTab} phase={phase} decision={decision} member={member} choices={choices} steps={steps} step={step} locationMode={locationMode} onNearby={requestNearbyStore} onFallback={() => setLocationMode("fallback")} onChoose={chooseDirection} onExecute={startExecute} />
         ) : (
           <>
             <section className="xm-chat">
@@ -311,6 +313,9 @@ export function XiaomanLuckinApp() {
                 </article>
               )}
               {userText && <UserMessage>{userText}</UserMessage>}
+              {(phase === "choices" || phase === "plan") && (
+                <LocationPrompt mode={locationMode} member={member} decision={decision} onNearby={requestNearbyStore} onFallback={() => setLocationMode("fallback")} />
+              )}
               {phase === "choices" && (
                 <>
                   <BotMessage>我先不直接固定推荐。下面是三个方向，选一个后再展开商品、门店、优惠和执行。</BotMessage>
@@ -329,7 +334,7 @@ export function XiaomanLuckinApp() {
           </>
         )}
       </main>
-      <Canvas role={role} pane={pane} setPane={changePane} phase={phase} decision={decision} member={member} choices={choices} steps={steps} step={step} onChoose={chooseDirection} onExecute={startExecute} />
+      <Canvas role={role} pane={pane} setPane={changePane} phase={phase} decision={decision} member={member} choices={choices} steps={steps} step={step} locationMode={locationMode} onNearby={requestNearbyStore} onFallback={() => setLocationMode("fallback")} onChoose={chooseDirection} onExecute={startExecute} />
       <nav className="xm-tabbar">
         <button className={mobileTab === "chat" ? "active" : ""} onClick={() => setMobileTab("chat")}><MessageSquareText size={19} /><span>对话</span></button>
         <button className={mobileTab === "plan" ? "active" : ""} onClick={() => changePane("plan")}><Coffee size={19} /><span>方案</span></button>
@@ -339,6 +344,18 @@ export function XiaomanLuckinApp() {
       <XiaomanModal modal={modal} onClose={() => setModal(null)} member={member} decision={decision} />
     </div>
   );
+
+  function requestNearbyStore() {
+    if (!("geolocation" in navigator)) {
+      setLocationMode("blocked");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      () => setLocationMode("nearby"),
+      () => setLocationMode("fallback"),
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 4_000 }
+    );
+  }
 }
 
 function Topbar({ member, view, role, setView, setRole, openModal }: {
@@ -500,7 +517,33 @@ function PlanBubble({ decision, member, onExecute }: { decision: AgentDecision; 
   );
 }
 
-function Canvas({ role, pane, setPane, phase, decision, member, choices, steps, step, onChoose, onExecute }: {
+function LocationPrompt({ mode, member, decision, onNearby, onFallback }: {
+  mode: LocationMode;
+  member: Member;
+  decision: AgentDecision;
+  onNearby: () => void;
+  onFallback: () => void;
+}) {
+  const statusCopy: Record<LocationMode, string> = {
+    idle: `可以用浏览器定位帮你优先看 ${member.city} 附近门店，也可以直接沿用常购门店。`,
+    nearby: `已按本轮授权使用附近门店排序：${decision.selectedStore.name}。不保存精确坐标。`,
+    fallback: `已切到常购门店兜底：${decision.selectedStore.name}。不读取实时位置。`,
+    blocked: `当前浏览器不可用定位，已切到 ${member.city} 常购门店兜底。`
+  };
+  return (
+    <article className="xm-location">
+      <MapPin size={18} />
+      <div>
+        <b>门店怎么选</b>
+        <p>{statusCopy[mode]}</p>
+      </div>
+      <button className={mode === "nearby" ? "active" : ""} onClick={onNearby}>用附近门店</button>
+      <button className={mode === "fallback" || mode === "blocked" ? "active" : ""} onClick={onFallback}>用常购门店</button>
+    </article>
+  );
+}
+
+function Canvas({ role, pane, setPane, phase, decision, member, choices, steps, step, locationMode, onNearby, onFallback, onChoose, onExecute }: {
   role: RoleMode;
   pane: Pane;
   setPane: (pane: Pane) => void;
@@ -510,6 +553,9 @@ function Canvas({ role, pane, setPane, phase, decision, member, choices, steps, 
   choices: ReturnType<typeof buildChoices>;
   steps: OrderStep[];
   step: number;
+  locationMode: LocationMode;
+  onNearby: () => void;
+  onFallback: () => void;
   onChoose: (value: string) => void;
   onExecute: () => void;
 }) {
@@ -527,7 +573,7 @@ function Canvas({ role, pane, setPane, phase, decision, member, choices, steps, 
         ) : (
           <>
             {pane === "plan" && (phase === "idle" ? <EmptyPane text="还没有方案" sub="回到对话，说一句今天想怎么喝" /> : phase === "choices" ? <ChoiceGrid choices={choices} onChoose={onChoose} /> : <PlanPane decision={decision} onExecute={onExecute} />)}
-            {pane === "map" && <StorePane decision={decision} />}
+            {pane === "map" && <StorePane decision={decision} member={member} locationMode={locationMode} onNearby={onNearby} onFallback={onFallback} />}
             {pane === "orders" && <OrderPane phase={phase} decision={decision} steps={steps} step={step} onExecute={onExecute} />}
             {pane === "memory" && <MemoryPane member={member} decision={decision} />}
           </>
@@ -537,7 +583,7 @@ function Canvas({ role, pane, setPane, phase, decision, member, choices, steps, 
   );
 }
 
-function MobilePane({ tab, phase, decision, member, choices, steps, step, onChoose, onExecute }: {
+function MobilePane({ tab, phase, decision, member, choices, steps, step, locationMode, onNearby, onFallback, onChoose, onExecute }: {
   tab: MobileTab;
   phase: Phase;
   decision: AgentDecision;
@@ -545,13 +591,16 @@ function MobilePane({ tab, phase, decision, member, choices, steps, step, onChoo
   choices: ReturnType<typeof buildChoices>;
   steps: OrderStep[];
   step: number;
+  locationMode: LocationMode;
+  onNearby: () => void;
+  onFallback: () => void;
   onChoose: (value: string) => void;
   onExecute: () => void;
 }) {
   return (
     <section className="xm-mobile-pane">
       {tab === "plan" && (phase === "idle" ? <EmptyPane text="还没有方案" sub="先回对话说一句今天想怎么喝" /> : phase === "choices" ? <ChoiceGrid choices={choices} onChoose={onChoose} /> : <PlanPane decision={decision} onExecute={onExecute} />)}
-      {tab === "map" && <StorePane decision={decision} />}
+      {tab === "map" && <StorePane decision={decision} member={member} locationMode={locationMode} onNearby={onNearby} onFallback={onFallback} />}
       {tab === "orders" && <OrderPane phase={phase} decision={decision} steps={steps} step={step} onExecute={onExecute} />}
       {tab === "memory" && <MemoryPane member={member} decision={decision} />}
     </section>
@@ -794,12 +843,19 @@ function PlanPane({ decision, onExecute }: { decision: AgentDecision; onExecute:
   );
 }
 
-function StorePane({ decision }: { decision: AgentDecision }) {
+function StorePane({ decision, member, locationMode, onNearby, onFallback }: {
+  decision: AgentDecision;
+  member: Member;
+  locationMode: LocationMode;
+  onNearby: () => void;
+  onFallback: () => void;
+}) {
   return (
     <article className="xm-card">
       <div className="xm-map-card"><MapPin size={34} /><span>{decision.selectedStore.distanceMeters}m</span></div>
       <h2>{decision.selectedStore.name}</h2>
       <p>排队{decision.selectedStore.queueLevel === "low" ? "较低" : "中等"} · ETA {decision.selectedStore.pickupEtaMinutes} 分钟 · {decision.selectedStore.inventoryHighlights.join(" / ")}</p>
+      <LocationPrompt mode={locationMode} member={member} decision={decision} onNearby={onNearby} onFallback={onFallback} />
     </article>
   );
 }
