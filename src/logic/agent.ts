@@ -84,7 +84,7 @@ export function generateDecision(member: Member, scenario: Scenario, request: st
     fallbackPlan,
     orderPath: [
       `${channelName(scenario.channel)} 捕捉自然语言需求，并命中 ${scenario.triggerSignals.join(" / ")}`,
-      `场景路由判断为 ${primary.intent}，候选最高分 ${winner.score}`,
+      `意图引导判断为 ${primary.intent}，候选最高分 ${winner.score}`,
       `菜单工具推荐 ${recommendation.name}，默认 ${recommendation.temperature} / ${recommendation.sugar}`,
       `门店工具选择 ${selectedStore.name}，${selectedStore.distanceMeters}m，预估 ${selectedStore.pickupEtaMinutes} 分钟取餐`,
       `券包工具使用 ${coupon.name}，模拟到手 ¥${finalPrice}`,
@@ -92,12 +92,12 @@ export function generateDecision(member: Member, scenario: Scenario, request: st
     ],
     wakeupMessage: isSleeping
       ? `${member.name}，你的 ${coupon.name} 将在 ${coupon.expiresInDays} 天内过期。今天用它试 ${recommendation.name}，口味按你偏好调好，模拟到手 ¥${finalPrice}；不想被打扰可直接跳过。`
-      : `${member.name}，按你的授权偏好、当前场景和附近门店，${recommendation.name} 是这轮最稳选择，已自动匹配 ${coupon.name}。`,
+      : `${member.name}，按你的授权偏好、当前状态和附近门店，${recommendation.name} 是这轮最稳选择，已自动匹配 ${coupon.name}。`,
     repurchasePlan: isSleeping
       ? "若本次接受推荐，3 天后用同品类低打扰复购；若放弃，降频并改为只提醒明确到期券。"
       : member.segment === "loyal"
-        ? "成交后只记录履约和甜温反馈，下次同场景默认生成免打扰草稿，不主动推新品。"
-        : "成交后 48 小时记录饮用反馈，下一次按相同场景优先展示快捷复购入口。",
+        ? "成交后只记录履约和甜温反馈，下次相似状态默认生成免打扰草稿，不主动推新品。"
+        : "成交后 48 小时记录饮用反馈，下一次按相似需求优先展示快捷复购入口。",
     trustExplanation: [
       `仅使用已授权字段：${member.consentScopes.join("、")}；不读取通讯录、支付密码或跨 App 行为。`,
       `推荐理由：${recommendation.reason}`,
@@ -160,7 +160,7 @@ function scoreProduct(
   for (const signal of scenario.triggerSignals) {
     if (searchable.includes(normalizeText(signal))) {
       score += 5;
-      reasons.push(`响应场景「${signal}」`);
+      reasons.push(`响应需求「${signal}」`);
     }
   }
 
@@ -286,7 +286,7 @@ function chooseCoupon(coupons: Coupon[], price: number, sensitivity: Member["pri
 }
 
 function explainCoupon(coupon: Coupon, price: number, sensitivity: Member["priceSensitivity"]) {
-  if (coupon.id === "none") return "当前没有可用优惠，Agent 会优先解释口味稳定性和取餐确定性。";
+  if (coupon.id === "none") return "当前没有可用优惠，小鹿会优先解释口味稳定性和取餐确定性。";
   const gap = Math.max(0, price - coupon.threshold);
   const sensitivityCopy = sensitivity === "high" ? "价格敏感用户优先最大折扣" : "在不增加选择成本的前提下优先核销";
   return `${coupon.name} 满 ¥${coupon.threshold} 可用，当前模拟客单价高出门槛 ¥${gap}，${coupon.expiresInDays} 天后过期；${sensitivityCopy}。`;
@@ -434,7 +434,7 @@ function queueLabel(queue: StoreStatus["queueLevel"]) {
 
 function channelName(channel: Scenario["channel"]) {
   const names: Record<Scenario["channel"], string> = {
-    "system-agent": "系统级 Agent",
+    "system-agent": "系统助手",
     app: "瑞幸 App",
     "mini-program": "小程序",
     "social-search": "社交搜索"

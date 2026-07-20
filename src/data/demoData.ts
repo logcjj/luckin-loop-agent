@@ -167,7 +167,7 @@ export const storeStatuses: StoreStatus[] = [
 export const agentModules: AgentModule[] = [
   {
     id: "intent-router",
-    name: "场景路由 Agent",
+    name: "意图引导",
     role: "把一句自然语言拆成提神、轻负担、快取、优惠尝新等可执行意图。",
     inputs: ["用户文本", "入口渠道", "时间段", "天气"],
     outputs: ["primaryIntent", "secondaryIntents", "confidence"],
@@ -176,7 +176,7 @@ export const agentModules: AgentModule[] = [
   },
   {
     id: "member-memory",
-    name: "会员记忆 Agent",
+    name: "咖啡记忆",
     role: "读取用户授权范围内的偏好、券包、复购周期和信任约束。",
     inputs: ["会员等级", "历史订单", "券包", "授权范围"],
     outputs: ["偏好摘要", "避忌列表", "可解释记忆"],
@@ -185,7 +185,7 @@ export const agentModules: AgentModule[] = [
   },
   {
     id: "menu-store-tools",
-    name: "菜单门店工具 Agent",
+    name: "菜单与门店",
     role: "组合商品目录、门店距离、排队、库存和取餐 ETA。",
     inputs: ["商品库", "门店状态", "库存提示", "距离"],
     outputs: ["候选商品", "候选门店", "履约风险"],
@@ -194,7 +194,7 @@ export const agentModules: AgentModule[] = [
   },
   {
     id: "coupon-optimizer",
-    name: "券包收益 Agent",
+    name: "优惠计算",
     role: "计算券可用性、过期优先级、到手价和用户放弃风险。",
     inputs: ["券包", "商品价格", "价格敏感度", "生命周期"],
     outputs: ["couponPlan", "finalPrice", "优惠解释"],
@@ -203,7 +203,7 @@ export const agentModules: AgentModule[] = [
   },
   {
     id: "growth-loop",
-    name: "增长回写 Agent",
+    name: "复购回写",
     role: "把接受、放弃、支付模拟和反馈写成下一轮触达策略。",
     inputs: ["本轮动作", "会员分群", "接受率", "复购周期"],
     outputs: ["wakeupMessage", "repurchasePlan", "运营指标"],
@@ -262,7 +262,7 @@ export const dataConnectors: DataConnector[] = [
     status: "blocked",
     dataScope: "等级、积分、券包、历史订单、偏好反馈。",
     permissionBoundary: "必须通过瑞幸官方授权登录；不能抓取或伪造真实会员数据。",
-    uiDisclosure: "当前为合成会员样本，仅演示 Agent 记忆结构。"
+    uiDisclosure: "当前为合成会员样本，仅演示记忆结构。"
   },
   {
     id: "payment",
@@ -331,7 +331,7 @@ export const dataSources: DataSourceRecord[] = [
     kind: "synthetic-demo",
     lastChecked: "2026-07-20",
     evidence: "本仓库 `src/data/demoData.ts` 内维护合成会员、券包、门店、库存和排队状态。",
-    canUseFor: ["Agent 架构演示", "隐私安全 demo", "离线评审"],
+    canUseFor: ["引导结构演示", "隐私安全 demo", "离线评审"],
     cannotUseFor: ["真实会员画像", "真实优惠券", "真实门店库存"]
   },
   {
@@ -428,12 +428,12 @@ export const members: Member[] = [
       { id: "c-speed", name: "下午茶加速券", value: 3, threshold: 15, expiresInDays: 1 }
     ],
     trustFlags: ["需要解释优惠券为什么这样用", "对距离和等待时间敏感"],
-    consentScopes: ["历史订单", "券包", "粗略位置", "场景时间"],
+    consentScopes: ["历史订单", "券包", "粗略位置", "本轮时间"],
     recentOrders: [
       { productId: "p-coconut-latte", product: "生椰拿铁", sugar: "半糖", temperature: "冰", daysAgo: 2, storeName: "上海静安嘉里中心店", finalPrice: 16 },
       { productId: "p-velvet-latte", product: "丝绒拿铁", sugar: "少糖", temperature: "热", daysAgo: 5, storeName: "上海静安嘉里中心店", finalPrice: 18 }
     ],
-    lifecycleGoal: "提升下午场景复购稳定度，同时减少排队导致的放弃。"
+    lifecycleGoal: "提升下午咖啡复购稳定度，同时减少排队导致的放弃。"
   },
   {
     id: "m-zhou",
@@ -522,7 +522,7 @@ export const scenarios: Scenario[] = [
     distanceToStoreMeters: 180,
     channel: "system-agent",
     triggerSignals: ["下午", "开会", "提神", "少糖", "近店快取"],
-    businessGoal: "提升工作日下午场景接受率与履约稳定度。"
+    businessGoal: "提升工作日下午咖啡接受率与履约稳定度。"
   },
   {
     id: "s-coupon",

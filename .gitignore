@@ -5,3 +5,6 @@ goal/
 .playwright-cli/
 *.log
 *.tsbuildinfo
+.env
+.env.local
+.env.*.local

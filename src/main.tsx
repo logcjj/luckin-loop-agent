@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import {
   adapterBlueprints,
-  agentModules,
   dataConnectors,
   dataSources,
   experienceMetrics,
@@ -37,11 +36,14 @@ import {
   scenarios
 } from "./data/demoData";
 import { generateDecision } from "./logic/agent";
+import { buildLocalGuideCopy, requestGuideCopy, type GuideCopy } from "./logic/guide";
 import type { AdapterBlueprint, AgentDecision, AgentTraceStep, DataConnector, DataSourceRecord, Member, Scenario } from "./types";
 import "./styles.css";
+import { XiaomanLuckinApp } from "./xiaomanLuckin";
 
 type WorkspaceModule = "briefing" | "dialogue" | "strategy" | "execute" | "growth" | "connectors";
 type ViewMode = "desktop" | "phone";
+type SurfaceMode = "consumer" | "merchant";
 type AutoScreen = "launch" | "home" | "search" | "product" | "customize" | "coupon" | "store" | "confirm" | "cashier";
 
 type AutoStep = {
@@ -55,20 +57,29 @@ type AutoStep = {
   guardrail: string;
 };
 
-const moduleNav: Array<{ id: WorkspaceModule; label: string; detail: string; icon: ReactNode }> = [
-  { id: "briefing", label: "今日任务", detail: "首屏闭环", icon: <Compass size={16} /> },
-  { id: "dialogue", label: "Agent 对话", detail: "需求澄清", icon: <MessageSquareText size={16} /> },
-  { id: "strategy", label: "推荐策略", detail: "召回精排", icon: <Coffee size={16} /> },
-  { id: "execute", label: "自动执行", detail: "手机模拟", icon: <Bot size={16} /> },
-  { id: "growth", label: "增长回写", detail: "复购评估", icon: <LineChart size={16} /> },
-  { id: "connectors", label: "数据接入", detail: "真实边界", icon: <Database size={16} /> }
+const rightTabs: Array<{ id: WorkspaceModule; label: string; icon: ReactNode }> = [
+  { id: "briefing", label: "方案", icon: <Coffee size={15} /> },
+  { id: "strategy", label: "门店", icon: <Store size={15} /> },
+  { id: "execute", label: "订单", icon: <Ticket size={15} /> },
+  { id: "dialogue", label: "记忆", icon: <UserRound size={15} /> }
 ];
+
+const officialOrderLinks = {
+  appDownload: "https://m.luckincoffee.us/app/download",
+  menu: "https://m.luckincoffee.us/menu",
+  stores: "https://www.luckincoffee.us/stores",
+  googlePlay: "https://play.google.com/store/apps/details?hl=en_US&id=com.luckin.client.us",
+  appStore: "https://apps.apple.com/us/app/luckin-coffee-usa/id6744305418"
+};
 
 function App() {
   const [memberId, setMemberId] = useState(members[0].id);
   const [scenarioId, setScenarioId] = useState(scenarios[0].id);
-  const [request, setRequest] = useState(scenarios[0].text);
+  const [request, setRequest] = useState("");
+  const [draftRequest, setDraftRequest] = useState("");
+  const [guidedChoice, setGuidedChoice] = useState("");
   const [activeModule, setActiveModule] = useState<WorkspaceModule>("briefing");
+  const [surfaceMode, setSurfaceMode] = useState<SurfaceMode>("consumer");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined" && window.innerWidth <= 760) return "phone";
     return "desktop";
@@ -81,14 +92,20 @@ function App() {
   const [stepIndex, setStepIndex] = useState(0);
   const [accepted, setAccepted] = useState(64);
   const [dismissed, setDismissed] = useState(18);
+  const [guideCopy, setGuideCopy] = useState<GuideCopy>(() => buildLocalGuideCopy(members[0], generateDecision(members[0], scenarios[0], scenarios[0].text), false));
 
   const member = members.find((item) => item.id === memberId) ?? members[0];
   const scenario = scenarios.find((item) => item.id === scenarioId) ?? scenarios[0];
-  const decision = useMemo(() => generateDecision(member, scenario, request), [member, scenario, request]);
+  const decisionRequest = [request.trim(), guidedChoice].filter(Boolean).join(" ") || scenario.text;
+  const decision = useMemo(() => generateDecision(member, scenario, decisionRequest), [member, scenario, decisionRequest]);
   const executionSteps = useMemo(() => buildExecutionSteps(member, scenario, decision), [member, scenario, decision]);
   const activeStep = executionSteps[Math.min(stepIndex, executionSteps.length - 1)];
   const acceptanceRate = Math.round((accepted / Math.max(accepted + dismissed, 1)) * 100);
   const effectiveViewMode: ViewMode = isCompactViewport ? "phone" : viewMode;
+  const hasUserRequest = request.trim().length > 0;
+  const isGuiding = hasUserRequest && !guidedChoice;
+  const planReady = hasUserRequest && Boolean(guidedChoice);
+  const canSubmitRequest = hasUserRequest || draftRequest.trim().length > 0;
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 700px)");
@@ -108,9 +125,38 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [running, stepIndex, executionSteps.length]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const localGuide = buildLocalGuideCopy(member, decision, hasUserRequest);
+    setGuideCopy(localGuide);
+    if (!hasUserRequest) return;
+
+    requestGuideCopy({
+      request,
+      member: {
+        city: member.city,
+        favoriteFlavors: member.favoriteFlavors,
+        avoid: member.avoid,
+        priceSensitivity: member.priceSensitivity
+      },
+      decision: {
+        primaryIntent: decision.primaryIntent,
+        confidence: decision.confidence
+      }
+    }).then((nextGuide) => {
+      if (!cancelled && nextGuide) setGuideCopy(nextGuide);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [request, hasUserRequest, member, decision]);
+
   function resetScenario(nextScenario: Scenario) {
     setScenarioId(nextScenario.id);
-    setRequest(nextScenario.text);
+    setRequest("");
+    setDraftRequest("");
+    setGuidedChoice("");
     setRunning(false);
     setStepIndex(0);
     setActiveModule("briefing");
@@ -129,8 +175,31 @@ function App() {
   }
 
   function acceptPlan() {
+    if (draftRequest.trim()) {
+      setRequest(draftRequest.trim());
+      setDraftRequest("");
+      setGuidedChoice("");
+      setActiveModule("dialogue");
+      setRunning(false);
+      setStepIndex(0);
+      return;
+    }
+    if (!hasUserRequest || !planReady) return;
     setAccepted((value) => value + 1);
     startExecution();
+  }
+
+  function submitQuickRequest(value: string) {
+    setDraftRequest(value);
+    setRunning(false);
+    setStepIndex(0);
+  }
+
+  function selectGuideChoice(value: string) {
+    setGuidedChoice(value);
+    setActiveModule("briefing");
+    setRunning(false);
+    setStepIndex(0);
   }
 
   function fallbackPlan() {
@@ -141,131 +210,670 @@ function App() {
     setStepIndex(storeStep >= 0 ? storeStep : 0);
   }
 
+  function switchSurfaceMode(nextMode: SurfaceMode) {
+    setSurfaceMode(nextMode);
+    setRunning(false);
+    setStepIndex(0);
+    setActiveModule("briefing");
+    setGuidedChoice("");
+    if (nextMode === "consumer" && request === scenario.text) setRequest("");
+  }
+
   return (
-    <main className={`product-shell view-${effectiveViewMode}`}>
+    <main className={`product-shell view-${effectiveViewMode} mode-${surfaceMode}`}>
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">鹿</div>
           <div>
             <strong>小鹿 CoffeePlan</strong>
-            <span>Luckin-style Agent ordering demo</span>
+            <span>把今天这杯咖啡点得刚刚好</span>
           </div>
         </div>
         <div className="top-actions">
-          <Pill icon={<ShieldCheck size={14} />} text="模拟数据" />
-          <Pill icon={<Timer size={14} />} text={`${decision.selectedStore.pickupEtaMinutes} 分钟取餐`} />
-          <Pill icon={<MapPin size={14} />} text={`${decision.selectedStore.distanceMeters}m`} />
-        </div>
-      </header>
-
-      <aside className="navigator">
-        <section className="director-card">
-          <div className="director-eyebrow">三幕咖啡旅程</div>
-          <h2>懂你 → 给稳方案 → 自动办到</h2>
-          <p>参考小满的“三幕故事”和 HireEasy 的 FlowNav：左侧不只是导航，而是演示进度、视图模式和能力挂载。</p>
-          <div className="view-toggle" aria-label="view mode">
+          <button className="loc-badge" onClick={() => setActiveModule("strategy")}>
+            <MapPin size={14} />
+            {member.city} · {decision.selectedStore.distanceMeters}m
+          </button>
+          <div className="surface-toggle" aria-label="surface mode">
+            <button className={surfaceMode === "consumer" ? "active" : ""} onClick={() => switchSurfaceMode("consumer")}>
+              用户
+            </button>
+            <button className={surfaceMode === "merchant" ? "active" : ""} onClick={() => switchSurfaceMode("merchant")}>
+              商家
+            </button>
+          </div>
+          <Pill icon={<Sparkles size={14} />} text="Qwen 可选" />
+          <Pill icon={<ShieldCheck size={14} />} text="支付前停" />
+          <div className="view-toggle top-view-toggle" aria-label="view mode">
             <button className={viewMode === "desktop" ? "active" : ""} onClick={() => setViewMode("desktop")}>
               <Monitor size={14} />
-              网页
+              电脑
             </button>
             <button className={viewMode === "phone" ? "active" : ""} onClick={() => setViewMode("phone")}>
               <Smartphone size={14} />
               手机
             </button>
           </div>
-          <button className="primary-command" onClick={acceptPlan}>
-            <Sparkles size={16} />
-            生成并执行
+        </div>
+      </header>
+
+      <aside className="navigator">
+        <button className="new-task-button" onClick={() => resetScenario(scenarios[0])}>
+          <span>＋</span>
+          新的咖啡
+        </button>
+
+        <section className="rail-session">
+          <RailTitle icon={<History size={15} />} title="会话历史" />
+          <button className="session-card active" onClick={() => setActiveModule("briefing")}>
+            <b>会前 18 分钟提神</b>
+            <span>{decision.recommendation.name} · {decision.selectedStore.pickupEtaMinutes} 分钟取餐</span>
+          </button>
+          <button className="session-card" onClick={() => setActiveModule("dialogue")}>
+            <b>{member.name} 的会员记忆</b>
+            <span>{tierLabel(member.tier)} · {member.lifecycleGoal}</span>
           </button>
         </section>
 
-        <RailTitle icon={<Compass size={15} />} title="FlowNav · 演示流" />
-        <nav className="story-flow" aria-label="workspace modules">
-          {moduleNav.map((item) => (
-            <button
-              className={flowClassName(item.id, activeModule)}
-              key={item.id}
-              onClick={() => setActiveModule(item.id)}
-            >
-              <i>{moduleNav.findIndex((module) => module.id === item.id) + 1}</i>
-              <span className="flow-line" />
-              <span className="flow-icon">{item.icon}</span>
-              <span className="flow-copy">
-                <b>{item.label}</b>
-                <small>{item.detail} · {moduleStatus(item.id, activeModule)}</small>
-              </span>
-            </button>
-          ))}
-        </nav>
-
-        <section className="script-panel">
-          <RailTitle icon={<Coffee size={15} />} title="场景脚本" />
-          <div className="script-list">
-            {scenarios.map((item) => (
-              <button className={item.id === scenario.id ? "script-item active" : "script-item"} key={item.id} onClick={() => resetScenario(item)}>
-                <b>{scenarioTitle(item)}</b>
-                <span>{item.triggerSignals.slice(0, 3).join(" / ")}</span>
+        <section className="rail-business-group">
+          <RailTitle icon={<Coffee size={15} />} title="生活" />
+          <div className="business-link-list">
+            {guideQuestions.map((item) => (
+              <button className="business-link" key={item} onClick={() => setDraftRequest(item)}>
+                <span>{item}</span>
+                <small>点一下放入输入框，不直接生成推荐</small>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="member-dock">
-          <RailTitle icon={<UserRound size={15} />} title="会员分身" />
-          <button className="member-active-card">
-            <strong>{member.name}</strong>
-            <span>{segmentLabel(member.segment)} · {tierLabel(member.tier)} · {member.city}</span>
-            <small>{member.lifecycleGoal}</small>
-          </button>
-          <div className="member-switcher">
+        <section className="rail-business-group">
+          <RailTitle icon={<UserRound size={15} />} title="记忆·进化" />
+          <div className="business-link-list">
             {members.map((item) => (
-              <button className={item.id === member.id ? "active" : ""} key={item.id} onClick={() => switchMember(item)}>
-                {item.name}
+              <button className={item.id === member.id ? "business-link active" : "business-link"} key={item.id} onClick={() => switchMember(item)}>
+                <span>{item.name} 的咖啡记忆</span>
+                <small>{segmentLabel(item.segment)} / {item.city}</small>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="ability-stack">
-          <RailTitle icon={<Zap size={15} />} title="能力挂载" />
-          {agentModules.slice(0, 3).map((module) => (
-            <div key={module.id}>
-              <b>{module.name}</b>
-              <span>{module.outputs.slice(0, 2).join(" / ")}</span>
-            </div>
-          ))}
+        <section className="rail-business-group">
+          <RailTitle icon={<Store size={15} />} title="商家" />
+          <div className="business-link-list">
+            <button className="business-link" onClick={() => setActiveModule("briefing")}>
+              <span>方案看板</span>
+              <small>商品 / 优惠 / 取餐</small>
+            </button>
+            <button className="business-link" onClick={() => setActiveModule("execute")}>
+              <span>订单执行</span>
+              <small>手机链路 / 支付前停</small>
+            </button>
+          </div>
         </section>
+
+        <section className="rail-business-group">
+          <RailTitle icon={<Compass size={15} />} title="接入·设置" />
+          <div className="business-link-list">
+            <button className="business-link" onClick={() => setActiveModule("connectors")}>
+              <span>真实来源</span>
+              <small>官方菜单 / App / Stores</small>
+            </button>
+          </div>
+        </section>
+
+        <section className="rail-privacy">
+          <ShieldCheck size={15} />
+          <div>
+            <b>支付前停止</b>
+            <span>商品图片可追溯；会员、券、库存与支付均为演示边界。</span>
+          </div>
+        </section>
+
+        <button className="primary-command rail-execute" onClick={acceptPlan} disabled={isGuiding || (!draftRequest.trim() && !planReady)}>
+            <Sparkles size={16} />
+            {isGuiding ? "先选方向" : planReady ? "执行点单" : "发送需求"}
+        </button>
       </aside>
 
       <section className="workspace">
-        {effectiveViewMode === "phone" ? (
-          <PhoneExperience
-            member={member}
-            scenario={scenario}
-            request={request}
-            decision={decision}
-            activeStep={activeStep}
-            executionSteps={executionSteps}
-            stepIndex={stepIndex}
-            running={running}
-            isExecuting={activeModule === "execute"}
-            onRequestChange={setRequest}
-            onExecute={acceptPlan}
-            onPause={() => setRunning((value) => !value)}
-            onScenarioSelect={resetScenario}
-          />
-        ) : (
-          <>
-            <MissionComposer
+        {surfaceMode === "consumer" ? (
+          effectiveViewMode === "phone" ? (
+            <ConsumerPhoneStage
+              member={member}
               request={request}
+              draftRequest={draftRequest}
+              decision={decision}
+              guideCopy={guideCopy}
+              isGuiding={isGuiding}
+              planReady={planReady}
+              activeStep={activeStep}
+              executionSteps={executionSteps}
+              stepIndex={stepIndex}
+              running={running}
+              isExecuting={activeModule === "execute"}
+              hasUserRequest={hasUserRequest}
+              canSubmitRequest={canSubmitRequest}
+              onRequestChange={setDraftRequest}
+              onExecute={acceptPlan}
+              onGuideChoice={selectGuideChoice}
+              onPause={() => setRunning((value) => !value)}
+              onQuickRequest={submitQuickRequest}
+            />
+          ) : (
+            <ConsumerWebStage
+              member={member}
+              scenario={scenario}
+              request={request}
+              draftRequest={draftRequest}
+              decision={decision}
+              guideCopy={guideCopy}
+              isGuiding={isGuiding}
+              planReady={planReady}
+              activeModule={activeModule}
+              acceptanceRate={acceptanceRate}
+              activeStep={activeStep}
+              executionSteps={executionSteps}
+              stepIndex={stepIndex}
+              running={running}
+              hasUserRequest={hasUserRequest}
+              canSubmitRequest={canSubmitRequest}
+              onRequestChange={setDraftRequest}
+              onExecute={acceptPlan}
+              onQuickRequest={submitQuickRequest}
+              onGuideChoice={selectGuideChoice}
+              onTabSelect={setActiveModule}
+              onRun={startExecution}
+              onPause={() => setRunning(false)}
+              onReset={() => {
+                setRunning(false);
+                setStepIndex(0);
+              }}
+            />
+          )
+        ) : (
+          <div className="desktop-workbench">
+            <DesktopChatCenter
+              member={member}
+              scenario={scenario}
+              request={request}
+              draftRequest={draftRequest}
+              decision={decision}
+              guideCopy={guideCopy}
+              isGuiding={isGuiding}
+              planReady={planReady}
+              canSubmitRequest={canSubmitRequest}
+              onRequestChange={setDraftRequest}
+              onAccept={acceptPlan}
+              onGuideChoice={selectGuideChoice}
+              onFallback={fallbackPlan}
+              onScenarioSelect={resetScenario}
+              onTabSelect={setActiveModule}
+              hasUserRequest={hasUserRequest}
+            />
+            <RightCanvas
+              activeModule={activeModule}
+              member={member}
               scenario={scenario}
               decision={decision}
-              onRequestChange={setRequest}
-              onAccept={acceptPlan}
-              onFallback={fallbackPlan}
+              acceptanceRate={acceptanceRate}
+              activeStep={activeStep}
+              executionSteps={executionSteps}
+              stepIndex={stepIndex}
+              running={running}
+              onTabSelect={setActiveModule}
+              onRun={startExecution}
+              onPause={() => setRunning(false)}
+              onReset={() => {
+                setRunning(false);
+                setStepIndex(0);
+              }}
+              hasUserRequest={hasUserRequest}
+              planReady={planReady}
             />
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
 
-            {activeModule === "execute" ? (
+function ConsumerPhoneStage({
+  member,
+  request,
+  draftRequest,
+  decision,
+  guideCopy,
+  isGuiding,
+  planReady,
+  activeStep,
+  executionSteps,
+  stepIndex,
+  running,
+  isExecuting,
+  hasUserRequest,
+  canSubmitRequest,
+  onRequestChange,
+  onExecute,
+  onGuideChoice,
+  onPause,
+  onQuickRequest
+}: {
+  member: Member;
+  request: string;
+  draftRequest: string;
+  decision: AgentDecision;
+  guideCopy: GuideCopy;
+  isGuiding: boolean;
+  planReady: boolean;
+  activeStep: AutoStep;
+  executionSteps: AutoStep[];
+  stepIndex: number;
+  running: boolean;
+  isExecuting: boolean;
+  hasUserRequest: boolean;
+  canSubmitRequest: boolean;
+  onRequestChange: (value: string) => void;
+  onExecute: () => void;
+  onGuideChoice: (value: string) => void;
+  onPause: () => void;
+  onQuickRequest: (value: string) => void;
+}) {
+  return (
+    <section className="consumer-phone-stage">
+      <aside className="consumer-copy">
+        <span>用户视图 · 手机</span>
+        <h1>手机里，像真的点单一样走。</h1>
+        <p>聊天先说需求，执行后进入接近官方 App 的点单模拟器：菜单、搜索、商品详情、糖温、优惠、门店、支付前确认。</p>
+        <div className="consumer-prompts">
+          {quickRequests.map((item) => (
+            <button key={item.label} onClick={() => onQuickRequest(item.text)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </aside>
+      <div className="showcase-phone-frame">
+        <PhoneExperience
+          member={member}
+          request={request}
+          draftRequest={draftRequest}
+          decision={decision}
+          guideCopy={guideCopy}
+          isGuiding={isGuiding}
+          planReady={planReady}
+          activeStep={activeStep}
+          executionSteps={executionSteps}
+          stepIndex={stepIndex}
+          running={running}
+          isExecuting={isExecuting}
+          hasUserRequest={hasUserRequest}
+          canSubmitRequest={canSubmitRequest}
+          onRequestChange={onRequestChange}
+          onExecute={onExecute}
+          onGuideChoice={onGuideChoice}
+          onPause={onPause}
+          onQuickRequest={onQuickRequest}
+        />
+      </div>
+    </section>
+  );
+}
+
+function ConsumerWebStage({
+  member,
+  scenario,
+  request,
+  draftRequest,
+  decision,
+  guideCopy,
+  isGuiding,
+  planReady,
+  activeModule,
+  acceptanceRate,
+  activeStep,
+  executionSteps,
+  stepIndex,
+  running,
+  hasUserRequest,
+  canSubmitRequest,
+  onRequestChange,
+  onExecute,
+  onQuickRequest,
+  onGuideChoice,
+  onTabSelect,
+  onRun,
+  onPause,
+  onReset
+}: {
+  member: Member;
+  scenario: Scenario;
+  request: string;
+  draftRequest: string;
+  decision: AgentDecision;
+  guideCopy: GuideCopy;
+  isGuiding: boolean;
+  planReady: boolean;
+  activeModule: WorkspaceModule;
+  acceptanceRate: number;
+  activeStep: AutoStep;
+  executionSteps: AutoStep[];
+  stepIndex: number;
+  running: boolean;
+  hasUserRequest: boolean;
+  canSubmitRequest: boolean;
+  onRequestChange: (value: string) => void;
+  onExecute: () => void;
+  onQuickRequest: (value: string) => void;
+  onGuideChoice: (value: string) => void;
+  onTabSelect: (tab: WorkspaceModule) => void;
+  onRun: () => void;
+  onPause: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="desktop-workbench consumer-workbench">
+      <section className="consumer-web-chat center-chat-window">
+        <div className="web-chat-head">
+          <div className="phone-logo">鹿</div>
+          <div>
+            <b>小鹿</b>
+            <span>先聊需求，再给方案</span>
+          </div>
+        </div>
+        <div className="web-chat-feed">
+          <Message role="agent" name="小鹿">
+            {guideCopy.opening}
+          </Message>
+          {!hasUserRequest ? (
+            <article className="desktop-starter-card">
+              <b>先聊两句，再推荐。</b>
+              <p>输入框为空时不会展示固定推荐。可以先回答小鹿的问题，也可以直接写一句今天想怎么喝。</p>
+              <div>
+                {quickRequests.map((item) => (
+                  <button key={item.label} onClick={() => onQuickRequest(item.text)}>{item.label}</button>
+                ))}
+              </div>
+            </article>
+          ) : isGuiding ? (
+            <>
+              <Message role="user" name="你">
+                {request}
+              </Message>
+              <Message role="agent" name="小鹿正在理解">
+                我已经收到你的描述。先按千问式对话逻辑给你几个方向，你选一个，我再展开具体咖啡方案。
+              </Message>
+              <GuideFollowups guideCopy={guideCopy} />
+              <GuideChoiceCards decision={decision} onChoose={onGuideChoice} />
+            </>
+          ) : planReady ? (
+            <>
+              <Message role="user" name="你">
+                {request}
+              </Message>
+              <Message role="agent" name="小鹿正在理解">
+                我已按你选择的方向收窄方案，下面才进入商品、门店、优惠和执行边界。
+              </Message>
+              <GuideFollowups guideCopy={guideCopy} />
+              <PhonePlanCard member={member} decision={decision} onExecute={onExecute} />
+              <OfficialHandoffCard />
+            </>
+          ) : null}
+        </div>
+        <footer className="desktop-composer">
+          <input type="password" value={draftRequest} onChange={(event) => onRequestChange(event.target.value)} placeholder="比如：开会前想提神，别太甜" aria-label="用户网页咖啡任务" autoComplete="off" />
+          <button onClick={onExecute} aria-label={planReady ? "执行点单" : "发送需求"} disabled={!canSubmitRequest}>
+            <Play size={18} />
+          </button>
+        </footer>
+      </section>
+      <RightCanvas
+        activeModule={activeModule}
+        member={member}
+        scenario={scenario}
+        decision={decision}
+        acceptanceRate={acceptanceRate}
+        activeStep={activeStep}
+        executionSteps={executionSteps}
+        stepIndex={stepIndex}
+        running={running}
+        onTabSelect={onTabSelect}
+        onRun={onRun}
+        onPause={onPause}
+        onReset={onReset}
+        hasUserRequest={hasUserRequest}
+        planReady={planReady}
+      />
+    </div>
+  );
+}
+
+const quickRequests = [
+  { label: "我现在有点困", text: "我现在有点困，想喝点提神的，但别太甜。" },
+  { label: "想喝轻一点", text: "今天想喝轻一点、低糖一点的咖啡，别太腻。" },
+  { label: "我赶时间", text: "我赶时间，帮我选一杯快取、少折腾的。" }
+];
+
+const guideQuestions = [
+  "你现在更想提神、解馋，还是轻负担？",
+  "能接受甜一点吗，还是希望少糖/无糖？",
+  "你更在意快取、价格，还是想试试新品？"
+];
+
+function DesktopChatCenter({
+  member,
+  scenario,
+  request,
+  draftRequest,
+  decision,
+  guideCopy,
+  isGuiding,
+  planReady,
+  onRequestChange,
+  onAccept,
+  onGuideChoice,
+  onFallback,
+  onScenarioSelect,
+  onTabSelect,
+  hasUserRequest,
+  canSubmitRequest
+}: {
+  member: Member;
+  scenario: Scenario;
+  request: string;
+  draftRequest: string;
+  decision: AgentDecision;
+  guideCopy: GuideCopy;
+  isGuiding: boolean;
+  planReady: boolean;
+  onRequestChange: (value: string) => void;
+  onAccept: () => void;
+  onGuideChoice: (value: string) => void;
+  onFallback: () => void;
+  onScenarioSelect: (scenario: Scenario) => void;
+  onTabSelect: (tab: WorkspaceModule) => void;
+  hasUserRequest: boolean;
+  canSubmitRequest: boolean;
+}) {
+  return (
+    <section className="center-chat-window">
+      <header className="chat-window-head">
+        <div>
+          <span>{scenarioTitle(scenario)} · {scenario.weather}</span>
+          <h1>先把咖啡任务聊清楚</h1>
+        </div>
+        <button onClick={() => onTabSelect("dialogue")}>
+          <UserRound size={15} />
+          画像
+        </button>
+      </header>
+
+      <div className="desktop-chat-feed">
+        <Message role="agent" name="小鹿">
+          {guideCopy.opening}
+        </Message>
+        {isGuiding ? (
+          <>
+            <Message role="user" name="用户需求">
+              {request}
+            </Message>
+            <Message role="agent" name="小鹿正在理解">
+              已收到描述。我先拆成几个可选方向，选中后再展开商品、门店和优惠。
+            </Message>
+            <GuideFollowups guideCopy={guideCopy} />
+            <GuideChoiceCards decision={decision} onChoose={onGuideChoice} />
+          </>
+        ) : planReady ? (
+          <>
+            <Message role="user" name="用户需求">
+              {request}
+            </Message>
+            <Message role="agent" name="小鹿正在理解">
+              方向已确认，现在展开这杯咖啡的方案和执行边界。
+            </Message>
+            <GuideFollowups guideCopy={guideCopy} />
+            <article className="rich-answer-card">
+              <div className="answer-product">
+                <ProductMedia decision={decision} compact />
+                <div>
+                  <small>{decision.primaryIntent}</small>
+                  <h2>{decision.recommendation.name}</h2>
+                  <p>{decision.recommendation.reason}</p>
+                </div>
+              </div>
+              <div className="answer-metrics">
+                <span>{decision.confidence}% 稳</span>
+                <span>{decision.selectedStore.pickupEtaMinutes} 分钟</span>
+                <span>¥{decision.couponPlan.finalPrice}</span>
+                <span>{decision.recommendation.temperature} / {decision.recommendation.sugar}</span>
+              </div>
+              <div className="answer-plan-grid">
+                <div>
+                  <b>门店</b>
+                  <p>{decision.selectedStore.name}，{decision.selectedStore.distanceMeters}m，排队{queueLabel(decision.selectedStore.queueLevel)}。</p>
+                </div>
+                <div>
+                  <b>优惠</b>
+                  <p>{decision.couponPlan.explanation}</p>
+                </div>
+                <div>
+                  <b>兜底</b>
+                  <p>{decision.fallbackPlan.userCopy}</p>
+                </div>
+              </div>
+              <div className="official-handoff-card compact">
+                <b>真实点单入口</b>
+                <p>商品与图片来自公开官方菜单；真正下单请跳转官方 App，支付由用户确认。</p>
+                <div>
+                  <a href={officialOrderLinks.appDownload} target="_blank" rel="noreferrer">打开官方 App</a>
+                  <a href={officialOrderLinks.menu} target="_blank" rel="noreferrer">看官方菜单</a>
+                </div>
+              </div>
+              <div className="answer-actions">
+                <button onClick={onAccept}><Bot size={15} /> 执行点单</button>
+                <button onClick={() => onTabSelect("briefing")}><Coffee size={15} /> 看方案</button>
+                <button onClick={onFallback}><RefreshCcw size={15} /> 换兜底</button>
+              </div>
+            </article>
+            <Message role="agent" name="执行前确认">
+              如果你点“执行点单”，右侧执行面板和手机视图会展示自动点单链路；流程只会推进到官方下单入口或支付前确认，不创建真实订单、不扣券、不扣款。
+            </Message>
+          </>
+        ) : (
+          <article className="desktop-starter-card">
+            <b>先说一句需求，小鹿再推荐。</b>
+              <p>不用先选菜单或模板。可以告诉我今天的状态、口味、预算、取餐时间，或者直接点下面的灵感。</p>
+            <div>
+              {quickRequests.map((item) => (
+                <button key={item.label} onClick={() => onRequestChange(item.text)}>{item.label}</button>
+              ))}
+            </div>
+          </article>
+        )}
+      </div>
+
+      <div className="chat-scenario-chips">
+        {guideQuestions.map((item) => (
+          <button key={item} onClick={() => onRequestChange(item)}>
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <footer className="desktop-composer">
+        <input id="coffee-request" type="password" value={draftRequest} onChange={(event) => onRequestChange(event.target.value)} aria-label="一句话咖啡任务" autoComplete="off" />
+        <button onClick={onAccept} aria-label={planReady ? "执行点单" : "发送需求"} disabled={!canSubmitRequest}>
+          <Play size={18} />
+        </button>
+      </footer>
+    </section>
+  );
+}
+
+function RightCanvas({
+  activeModule,
+  member,
+  scenario,
+  decision,
+  acceptanceRate,
+  activeStep,
+  executionSteps,
+  stepIndex,
+  running,
+  onTabSelect,
+  onRun,
+  onPause,
+  onReset,
+  hasUserRequest,
+  planReady
+}: {
+  activeModule: WorkspaceModule;
+  member: Member;
+  scenario: Scenario;
+  decision: AgentDecision;
+  acceptanceRate: number;
+  activeStep: AutoStep;
+  executionSteps: AutoStep[];
+  stepIndex: number;
+  running: boolean;
+  onTabSelect: (tab: WorkspaceModule) => void;
+  onRun: () => void;
+  onPause: () => void;
+  onReset: () => void;
+  hasUserRequest: boolean;
+  planReady: boolean;
+}) {
+  const normalizedTab = rightTabs.some((tab) => tab.id === activeModule) ? activeModule : "briefing";
+
+  return (
+    <aside className="right-canvas">
+      <nav className="right-tabs" aria-label="right canvas tabs">
+        {rightTabs.map((tab) => (
+          <button className={normalizedTab === tab.id ? "active" : ""} key={tab.id} onClick={() => onTabSelect(tab.id)}>
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+      <div className="right-canvas-body">
+        {(!hasUserRequest || !planReady) && normalizedTab !== "connectors" ? (
+          <AwaitingNeedPanel hasUserRequest={hasUserRequest} />
+        ) : (
+          <>
+            {normalizedTab === "briefing" && (
+              <BriefingCanvas
+                member={member}
+                scenario={scenario}
+                decision={decision}
+                acceptanceRate={acceptanceRate}
+                onExecute={onRun}
+              />
+            )}
+            {normalizedTab === "dialogue" && <InsightPanel member={member} decision={decision} />}
+            {normalizedTab === "strategy" && <StrategyCanvas decision={decision} />}
+            {normalizedTab === "growth" && <GrowthCanvas decision={decision} acceptanceRate={acceptanceRate} />}
+            {normalizedTab === "execute" && (
               <ExecuteStudio
                 member={member}
                 decision={decision}
@@ -273,69 +881,79 @@ function App() {
                 executionSteps={executionSteps}
                 stepIndex={stepIndex}
                 running={running}
-                onRun={startExecution}
-                onPause={() => setRunning(false)}
-                onReset={() => {
-                  setRunning(false);
-                  setStepIndex(0);
-                }}
+                onRun={onRun}
+                onPause={onPause}
+                onReset={onReset}
               />
-            ) : (
-              <div className="work-grid">
-                <section className="main-canvas">
-                  {activeModule === "briefing" && (
-                    <BriefingCanvas
-                      member={member}
-                      scenario={scenario}
-                      decision={decision}
-                      acceptanceRate={acceptanceRate}
-                      onExecute={startExecution}
-                    />
-                  )}
-                  {activeModule === "dialogue" && <DialogueCanvas member={member} scenario={scenario} decision={decision} />}
-                  {activeModule === "strategy" && <StrategyCanvas decision={decision} />}
-                  {activeModule === "growth" && <GrowthCanvas decision={decision} acceptanceRate={acceptanceRate} />}
-                  {activeModule === "connectors" && <ConnectorCanvas />}
-                </section>
-
-                <InsightPanel member={member} decision={decision} />
-              </div>
             )}
+            {normalizedTab === "connectors" && <ConnectorCanvas />}
           </>
         )}
-      </section>
-    </main>
+      </div>
+    </aside>
+  );
+}
+
+function AwaitingNeedPanel({ hasUserRequest }: { hasUserRequest: boolean }) {
+  return (
+    <section className="awaiting-panel">
+      <div className="awaiting-icon">鹿</div>
+      <h2>{hasUserRequest ? "先选一个方向，再展开方案。" : "等用户说一句，再展开方案。"}</h2>
+      <p>
+        {hasUserRequest
+          ? "小鹿已进入理解阶段，右侧暂不提前给商品和执行链路。用户确认偏好方向后，再展示门店、券包、画像和执行。"
+          : "这里不会先塞固定推荐。用户说出状态、口味、预算或取餐时间后，才显示候选方向。"}
+      </p>
+      <div>
+        <span>先聊需求</span>
+        <span>选择方向</span>
+        <span>再给方案</span>
+        <span>执行前确认</span>
+      </div>
+    </section>
   );
 }
 
 function PhoneExperience({
   member,
-  scenario,
   request,
+  draftRequest,
   decision,
+  guideCopy,
+  isGuiding,
+  planReady,
   activeStep,
   executionSteps,
   stepIndex,
   running,
   isExecuting,
+  hasUserRequest,
+  canSubmitRequest,
   onRequestChange,
   onExecute,
+  onGuideChoice,
   onPause,
-  onScenarioSelect
+  onQuickRequest
 }: {
   member: Member;
-  scenario: Scenario;
   request: string;
+  draftRequest: string;
   decision: AgentDecision;
+  guideCopy: GuideCopy;
+  isGuiding: boolean;
+  planReady: boolean;
   activeStep: AutoStep;
   executionSteps: AutoStep[];
   stepIndex: number;
   running: boolean;
   isExecuting: boolean;
+  hasUserRequest: boolean;
+  canSubmitRequest: boolean;
   onRequestChange: (value: string) => void;
   onExecute: () => void;
+  onGuideChoice: (value: string) => void;
   onPause: () => void;
-  onScenarioSelect: (scenario: Scenario) => void;
+  onQuickRequest: (value: string) => void;
 }) {
   const [locationMode, setLocationMode] = useState<"nearby" | "fallback">("nearby");
   const [geoState, setGeoState] = useState<"idle" | "requesting" | "granted" | "denied" | "unsupported">("idle");
@@ -369,7 +987,7 @@ function PhoneExperience({
           <b>小鹿</b>
           <span>{locationMode === "nearby" ? `${member.city} · ${decision.selectedStore.distanceMeters}m` : "常购门店兜底"}</span>
         </div>
-        <button onClick={onExecute}>
+        <button onClick={onExecute} disabled={!planReady}>
           <Bot size={14} />
           执行
         </button>
@@ -389,8 +1007,8 @@ function PhoneExperience({
       ) : (
         <>
           <section className="phone-chat-feed">
-            <PhoneBubble role="agent" name="小鹿 Agent">
-              像小满一样，先聊天把事说清楚：你只要说今天这杯咖啡解决什么问题，我来处理口味、券、门店、取餐和兜底。
+            <PhoneBubble role="agent" name="小鹿">
+              {guideCopy.opening}
             </PhoneBubble>
             <PhoneLocationCard
               mode={locationMode}
@@ -402,32 +1020,77 @@ function PhoneExperience({
                 setLocationMode("fallback");
               }}
             />
-            <PhoneBubble role="user" name={member.name}>
-              {scenario.text}
-            </PhoneBubble>
-            <PhonePlanCard member={member} decision={decision} onExecute={onExecute} />
-            <PhoneBubble role="agent" name="执行前确认">
-              已按 {decision.primaryIntent} 匹配 {decision.recommendation.name}，{decision.recommendation.temperature} / {decision.recommendation.sugar}，模拟到手 ¥{decision.couponPlan.finalPrice}。点执行后进入手机点单模拟，链路会用弹窗显示，并停在支付前。
-            </PhoneBubble>
+            {isGuiding ? (
+              <>
+                <PhoneBubble role="user" name="你">
+                  {request}
+                </PhoneBubble>
+                <PhoneBubble role="agent" name="小鹿正在理解">
+                  我已收到你的描述。先选一个方向，再给具体这杯。
+                </PhoneBubble>
+                <MobileGuideFollowups guideCopy={guideCopy} />
+                <MobileGuideChoices decision={decision} onChoose={onGuideChoice} />
+              </>
+            ) : planReady ? (
+              <>
+                <PhoneBubble role="user" name="你">
+                  {request}
+                </PhoneBubble>
+                <PhoneBubble role="agent" name="小鹿正在理解">
+                  方向已确认，现在给你这杯方案。
+                </PhoneBubble>
+                <MobileGuideFollowups guideCopy={guideCopy} />
+                <PhonePlanCard member={member} decision={decision} onExecute={onExecute} />
+                <PhoneBubble role="agent" name="执行前确认">
+                  已按 {decision.primaryIntent} 匹配 {decision.recommendation.name}，{decision.recommendation.temperature} / {decision.recommendation.sugar}，模拟到手 ¥{decision.couponPlan.finalPrice}。点执行后进入手机点单模拟，链路会用弹窗显示，并停在支付前。
+                </PhoneBubble>
+              </>
+            ) : (
+              <PhoneStarterCard onQuickRequest={onQuickRequest} />
+            )}
           </section>
 
           <section className="phone-quick-row">
-            {scenarios.map((item) => (
-              <button className={item.id === scenario.id ? "active" : ""} key={item.id} onClick={() => onScenarioSelect(item)}>
-                {scenarioTitle(item)}
+            {quickRequests.map((item) => (
+              <button key={item.label} onClick={() => onQuickRequest(item.text)}>
+                {item.label}
               </button>
             ))}
           </section>
 
+          <nav className="phone-tabbar" aria-label="手机底部导航">
+            <button className="active"><MessageSquareText size={18} /><span>对话</span></button>
+            <button><Coffee size={18} /><span>方案</span></button>
+            <button><MapPin size={18} /><span>门店</span></button>
+            <button><Ticket size={18} /><span>订单</span></button>
+          </nav>
+
           <footer className="phone-composer">
-            <input value={request} onChange={(event) => onRequestChange(event.target.value)} aria-label="手机端咖啡任务" />
-            <button onClick={onExecute} aria-label="执行点单">
+            <input type="password" value={draftRequest} onChange={(event) => onRequestChange(event.target.value)} placeholder="比如：开会前想提神，别太甜" aria-label="手机端咖啡任务" autoComplete="off" />
+            <button onClick={onExecute} aria-label={planReady ? "执行点单" : "发送需求"} disabled={!canSubmitRequest}>
               <Play size={17} />
             </button>
           </footer>
         </>
       )}
     </div>
+  );
+}
+
+function PhoneStarterCard({ onQuickRequest }: { onQuickRequest: (value: string) => void }) {
+  return (
+    <article className="phone-starter-card">
+      <b>先说说你现在的状态。</b>
+      <p>不用先选菜单或模板。小鹿会继续追问口味、甜度、取餐时间，再给方案。</p>
+      <ul>
+        {guideQuestions.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+      <div>
+        {quickRequests.map((item) => (
+          <button key={item.label} onClick={() => onQuickRequest(item.text)}>{item.label}</button>
+        ))}
+      </div>
+    </article>
   );
 }
 
@@ -486,6 +1149,76 @@ function PhoneBubble({ role, name, children }: { role: "user" | "agent"; name: s
   );
 }
 
+function GuideFollowups({ guideCopy }: { guideCopy: GuideCopy }) {
+  return (
+    <article className="guide-followups">
+      <b>{guideCopy.summary}</b>
+      <div>
+        {guideCopy.followUps.map((item) => <span key={item}>{item}</span>)}
+      </div>
+      <small>{guideCopy.source === "qwen" ? "Qwen 引导" : "本地引导"}</small>
+    </article>
+  );
+}
+
+function GuideChoiceCards({ decision, onChoose }: { decision: AgentDecision; onChoose: (value: string) => void }) {
+  return (
+    <section className="guide-choice-grid">
+      {buildGuideChoices(decision).map((choice) => (
+        <button key={choice.id} onClick={() => onChoose(choice.value)}>
+          <span>{choice.kicker}</span>
+          <b>{choice.title}</b>
+          <p>{choice.description}</p>
+          <small>{choice.meta}</small>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+function MobileGuideChoices({ decision, onChoose }: { decision: AgentDecision; onChoose: (value: string) => void }) {
+  return (
+    <section className="mobile-guide-choices">
+      {buildGuideChoices(decision).map((choice) => (
+        <button key={choice.id} onClick={() => onChoose(choice.value)}>
+          <span>{choice.kicker}</span>
+          <b>{choice.title}</b>
+          <small>{choice.meta}</small>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+function MobileGuideFollowups({ guideCopy }: { guideCopy: GuideCopy }) {
+  return (
+    <article className="mobile-guide-followups">
+      <b>{guideCopy.summary}</b>
+      {guideCopy.followUps.map((item) => <span key={item}>{item}</span>)}
+    </article>
+  );
+}
+
+function buildGuideChoices(decision: AgentDecision) {
+  const candidates = decision.candidateScores.slice(0, 3);
+  const fallback = [
+    { name: decision.recommendation.name, score: decision.confidence, reasons: [decision.primaryIntent], tradeoffs: [] },
+    { name: "轻负担低糖", score: 82, reasons: ["少糖", "不腻"], tradeoffs: ["提神弱一点"] },
+    { name: "快取少折腾", score: 78, reasons: ["门店近", "出杯稳"], tradeoffs: ["新品感弱"] }
+  ];
+  const source = candidates.length >= 3 ? candidates : fallback;
+  const labels = ["稳妥一点", "轻一点", "快一点"];
+
+  return source.slice(0, 3).map((item, index) => ({
+    id: `${item.name}-${index}`,
+    kicker: labels[index],
+    title: item.name,
+    description: item.reasons.join(" / ") || "按当前状态继续收窄",
+    meta: `${item.score}% 匹配${item.tradeoffs.length ? ` · ${item.tradeoffs[0]}` : ""}`,
+    value: `${labels[index]}：${item.name}。${item.reasons.join("，")}`
+  }));
+}
+
 function PhonePlanCard({ member, decision, onExecute }: { member: Member; decision: AgentDecision; onExecute: () => void }) {
   return (
     <article className="phone-plan-card">
@@ -504,6 +1237,20 @@ function PhonePlanCard({ member, decision, onExecute }: { member: Member; decisi
         <Bot size={15} />
         执行点单
       </button>
+    </article>
+  );
+}
+
+function OfficialHandoffCard() {
+  return (
+    <article className="official-handoff-card">
+      <b>接近真实点单的地方</b>
+      <p>商品图和菜单入口接官方公开来源；真实下单需要跳转官方 App，由用户自己确认门店、券和付款。</p>
+      <div>
+        <a href={officialOrderLinks.appDownload} target="_blank" rel="noreferrer">官方 App</a>
+        <a href={officialOrderLinks.menu} target="_blank" rel="noreferrer">官方菜单</a>
+        <a href={officialOrderLinks.stores} target="_blank" rel="noreferrer">官方门店</a>
+      </div>
     </article>
   );
 }
@@ -570,7 +1317,7 @@ function MissionComposer({
       <div className="composer-card">
         <label htmlFor="coffee-request">一句话咖啡任务</label>
         <div className="input-row">
-          <input id="coffee-request" value={request} onChange={(event) => onRequestChange(event.target.value)} />
+          <input id="coffee-request" type="password" value={request} onChange={(event) => onRequestChange(event.target.value)} autoComplete="off" />
           <button onClick={onAccept} aria-label="生成并执行">
             <Play size={17} />
           </button>
@@ -624,14 +1371,14 @@ function BriefingCanvas({
       </section>
 
       <div className="kpi-grid">
-        <Metric label="Agent 置信" value={`${decision.confidence}%`} note={decision.primaryIntent} />
+        <Metric label="小鹿把握" value={`${decision.confidence}%`} note={decision.primaryIntent} />
         <Metric label="取餐 ETA" value={`${decision.selectedStore.pickupEtaMinutes} 分钟`} note={decision.selectedStore.name} />
         <Metric label="推荐接受率" value={`${acceptanceRate}%`} note="本地交互样本" />
         <Metric label="会员周期" value={`${member.lastOrderDays} 天`} note={member.lifecycleGoal} />
       </div>
 
       <section className="panel-card">
-        <SectionTitle icon={<Bot size={16} />} title="Agent 编排" />
+        <SectionTitle icon={<Bot size={16} />} title="决策链路" />
         <div className="agent-runway">
           {decision.agentTrace.map((step) => <TraceStep key={step.moduleId} step={step} />)}
         </div>
@@ -658,14 +1405,14 @@ function BriefingCanvas({
   );
 }
 
-function DialogueCanvas({ member, scenario, decision }: { member: Member; scenario: Scenario; decision: AgentDecision }) {
+function DialogueCanvas({ member, decision }: { member: Member; scenario: Scenario; decision: AgentDecision }) {
   return (
     <div className="dialogue-layout">
       <section className="chat-board">
-        <Message role="user" name={member.name}>
-          {scenario.text}
+        <Message role="agent" name="小鹿正在理解">
+          用户描述已收到，这里不复述原文。先把状态、口味、门店和优惠边界问清楚。
         </Message>
-        <Message role="agent" name="小鹿 Agent">
+        <Message role="agent" name="小鹿">
           我会按“{decision.primaryIntent}”处理：先用会员记忆避开 {member.avoid.join("、")}，再用门店 ETA 和券包做排序。推荐 {decision.recommendation.name}，{decision.recommendation.temperature} / {decision.recommendation.sugar}，模拟到手 ¥{decision.couponPlan.finalPrice}。
         </Message>
         <Message role="agent" name="执行确认">
@@ -789,7 +1536,7 @@ function ConnectorCanvas() {
       <section className="panel-card full-span">
         <SectionTitle icon={<ShieldCheck size={16} />} title="真实数据边界" />
         <p>
-          商品图片来自公开官方菜单页面；价格、库存、会员、券和支付都需要官方授权接口。当前页面用合成数据展示 Agent 架构，
+          商品图片来自公开官方菜单页面；价格、库存、会员、券和支付都需要官方授权接口。当前页面用合成数据展示引导结构，
           不能声明为瑞幸中国区实时结果，也不会创建真实订单、扣券或扣款。
         </p>
       </section>
@@ -830,8 +1577,8 @@ function ExecuteStudio({
       <aside className="agent-cockpit">
         <div className="cockpit-head">
           <div>
-            <small>GUI-Agent Cockpit</small>
-            <h2>Observe · Think · Act</h2>
+            <small>执行观察台</small>
+            <h2>观察 · 判断 · 操作</h2>
           </div>
           <div>
             <button onClick={running ? onPause : onRun}>{running ? <Pause size={16} /> : <Play size={16} />}</button>
@@ -952,18 +1699,24 @@ function PhoneApp({ member, decision, activeStep }: { member: Member; decision: 
       </div>
 
       {activeStep.screen === "launch" && (
-        <PhoneScreen title="小鹿正在启动点单">
+        <PhoneScreen title="Luckin Coffee">
           <div className="launch-logo">鹿</div>
-          <p className="screen-note">读取授权：历史订单、券包、粗略位置、场景时间。</p>
+          <p className="screen-note">模拟打开官方点单入口；真实下单会跳转官方 App，由用户确认登录和支付。</p>
+          <div className="official-link-row">
+            <a href={officialOrderLinks.appDownload} target="_blank" rel="noreferrer">Get the App</a>
+            <a href={officialOrderLinks.menu} target="_blank" rel="noreferrer">Menu</a>
+            <a href={officialOrderLinks.stores} target="_blank" rel="noreferrer">Stores</a>
+          </div>
         </PhoneScreen>
       )}
 
       {activeStep.screen === "home" && (
         <PhoneScreen title={`你好，${member.name}`}>
           <div className="promo-band">
-            <b>今天这杯交给 Agent</b>
-            <span>{decision.primaryIntent} · {decision.selectedStore.pickupEtaMinutes} 分钟快取</span>
+            <b>Order ahead</b>
+            <span>{decision.primaryIntent} · {decision.selectedStore.pickupEtaMinutes} 分钟快取 · 官方 App 付款</span>
           </div>
+          <div className="official-source-note">参考 Luckin Coffee US App / Menu / Stores 公开入口；本地只模拟操作。</div>
           <div className="app-menu-grid">
             <button>现在点单</button>
             <button>常购</button>
@@ -976,7 +1729,14 @@ function PhoneApp({ member, decision, activeStep }: { member: Member; decision: 
       {activeStep.screen === "search" && (
         <PhoneScreen title="搜索商品">
           <div className="search-box"><Search size={14} /> {decision.recommendation.name}</div>
+          <div className="menu-category-tabs">
+            <span className="active">推荐</span>
+            <span>拿铁</span>
+            <span>美式</span>
+            <span>果咖</span>
+          </div>
           <ProductResult decision={decision} />
+          <div className="official-source-note">商品图片来自 Luckin Coffee US 官方菜单公开 CDN。</div>
         </PhoneScreen>
       )}
 
@@ -986,6 +1746,7 @@ function PhoneApp({ member, decision, activeStep }: { member: Member; decision: 
           <div className="detail-list">
             <span>风味：{decision.recommendation.flavorNotes?.join(" / ")}</span>
             <span>标签：{decision.recommendation.nutritionTags?.join(" / ")}</span>
+            <span>来源：{getProduct(decision)?.imageSourceName ?? "公开菜单参考"}</span>
           </div>
         </PhoneScreen>
       )}
@@ -1005,6 +1766,7 @@ function PhoneApp({ member, decision, activeStep }: { member: Member; decision: 
             <span>模拟到手 ¥{decision.couponPlan.finalPrice}</span>
           </div>
           <p className="screen-note">{decision.couponPlan.explanation}</p>
+          <div className="official-source-note">真实优惠券需官方账号授权；这里不扣券。</div>
         </PhoneScreen>
       )}
 
@@ -1018,23 +1780,30 @@ function PhoneApp({ member, decision, activeStep }: { member: Member; decision: 
             <b>{decision.selectedStore.name}</b>
             <span>{decision.selectedStore.distanceMeters}m · ETA {decision.selectedStore.pickupEtaMinutes} 分钟 · 排队{queueLabel(decision.selectedStore.queueLevel)}</span>
           </div>
+          <a className="store-official-link" href={officialOrderLinks.stores} target="_blank" rel="noreferrer">打开官方门店页</a>
         </PhoneScreen>
       )}
 
       {activeStep.screen === "confirm" && (
         <PhoneScreen title="确认订单">
           <OrderSummary decision={decision} />
-          <button className="mock-pay">提交模拟订单</button>
+          <button className="mock-pay">生成官方 App 下单草稿</button>
+          <OfficialHandoffCard />
         </PhoneScreen>
       )}
 
       {activeStep.screen === "cashier" && (
-        <PhoneScreen title="支付前确认">
+        <PhoneScreen title="官方 App 支付前">
           <OrderSummary decision={decision} />
           <div className="pay-stop">
             <ShieldCheck size={20} />
-            <b>已停止在支付前</b>
-            <span>真实支付必须由用户二次确认，本 demo 不扣款。</span>
+            <b>已交给官方 App / 支付前停止</b>
+            <span>真实下单、券和付款必须在官方 App 里由用户确认。</span>
+          </div>
+          <div className="official-link-row">
+            <a href={officialOrderLinks.appDownload} target="_blank" rel="noreferrer">打开官方 App</a>
+            <a href={officialOrderLinks.googlePlay} target="_blank" rel="noreferrer">Google Play</a>
+            <a href={officialOrderLinks.appStore} target="_blank" rel="noreferrer">App Store</a>
           </div>
         </PhoneScreen>
       )}
@@ -1244,18 +2013,18 @@ function buildExecutionSteps(member: Member, scenario: Scenario, decision: Agent
     {
       id: "launch",
       screen: "launch",
-      observation: "手机停留在咖啡 Agent 工作台，任务尚未进入 App 点单流程。",
-      thought: "先打开瑞幸式点单入口，并把用户需求写入置顶记忆。",
-      action: "open(app='luckin mock')",
-      target: "瑞幸点单模拟器",
-      memory: `REMEMBER【计划】: 打开 App → 搜索 ${decision.recommendation.name} → 选规格 → 用券 → 选店 → 到支付前停止`,
-      guardrail: "仅打开本地模拟器，不启动真实瑞幸 App。"
+      observation: "手机停留在小鹿聊天页，尚未进入官方点单入口。",
+      thought: "先打开接近 Luckin Coffee 官方 App 的点单模拟器，并准备官方 App/Menu/Stores 跳转。",
+      action: "open(source='Luckin official app entry')",
+      target: "官方 App 点单入口模拟",
+      memory: `REMEMBER【计划】: 打开官方入口 → 搜索 ${decision.recommendation.name} → 选规格 → 用券 → 选店 → 跳转官方 App / 支付前停止`,
+      guardrail: "本地只模拟操作；真实下单必须交给官方 App 和用户确认。"
     },
     {
       id: "home",
       screen: "home",
-      observation: `首页识别到 ${member.name} 的会员状态、附近门店和常购入口。`,
-      thought: "当前场景是自然语言点单，优先走搜索/常购入口，减少用户找菜单。",
+      observation: `首页显示 Order ahead、常购、券包、附近门店入口，类似官方 App 的点单路径。`,
+      thought: "当前入口是自然语言点单，优先走搜索/常购入口，减少用户找菜单。",
       action: "click(point='现在点单')",
       target: "首页 · 现在点单",
       memory: `REMEMBER【会员】: ${segmentLabel(member.segment)} / ${member.city} / 避忌 ${member.avoid.join("、")}`,
@@ -1264,7 +2033,7 @@ function buildExecutionSteps(member: Member, scenario: Scenario, decision: Agent
     {
       id: "search",
       screen: "search",
-      observation: `搜索框为空，候选商品最高分为 ${decision.candidateScores[0]?.score ?? decision.confidence}。`,
+      observation: `菜单页展示分类 tab 和官方菜单商品图，候选商品最高分为 ${decision.candidateScores[0]?.score ?? decision.confidence}。`,
       thought: "按推荐结果直接输入商品名，避免被热门词或广告位干扰。",
       action: `type(content='${decision.recommendation.name}')`,
       target: "搜索框",
@@ -1314,22 +2083,22 @@ function buildExecutionSteps(member: Member, scenario: Scenario, decision: Agent
     {
       id: "confirm",
       screen: "confirm",
-      observation: "确认页已汇总商品、规格、券和门店，尚未进入真实支付。",
-      thought: "检查订单四要素一致后，只提交模拟订单。",
-      action: "click(button='提交模拟订单')",
+      observation: "确认页已汇总商品、规格、券和门店，并展示官方 App 下单入口。",
+      thought: "检查订单四要素一致后，只生成官方 App 下单草稿，不创建真实订单。",
+      action: "click(button='生成官方 App 下单草稿')",
       target: "确认订单页",
       memory: "REMEMBER【进度】: 商品、规格、券、门店均已确认",
-      guardrail: "提交动作只更新本地 UI，不创建真实订单。"
+      guardrail: "本地草稿只用于演示，真实订单必须在官方 App 中完成。"
     },
     {
       id: "cashier",
       screen: "cashier",
-      observation: "页面到达支付前确认点，出现支付提示和订单摘要。",
-      thought: "任务已到安全停止点，不能继续点击真实支付。",
-      action: "complete(content='')",
-      target: "支付前停止",
-      memory: "REMEMBER【完成】: 已停在支付前确认页",
-      guardrail: "真实支付必须用户二次确认，本 demo 不扣款。"
+      observation: "页面到达官方 App 支付前交接点，出现 App Store / Google Play / 官方 App 入口。",
+      thought: "任务已到安全停止点，不能代替用户完成真实支付。",
+      action: "handoff(to='official Luckin app')",
+      target: "官方 App / 支付前停止",
+      memory: "REMEMBER【完成】: 已生成官方 App 交接入口并停在支付前",
+      guardrail: "真实下单、券和付款必须在官方 App 里由用户确认。"
     }
   ];
 }
@@ -1378,22 +2147,6 @@ function scenarioTitle(item: Scenario) {
   return "老样子快取";
 }
 
-function flowClassName(moduleId: WorkspaceModule, activeModule: WorkspaceModule) {
-  const current = moduleNav.findIndex((item) => item.id === activeModule);
-  const target = moduleNav.findIndex((item) => item.id === moduleId);
-  if (moduleId === activeModule) return "flow-step active";
-  if (target < current) return "flow-step done";
-  return "flow-step";
-}
-
-function moduleStatus(moduleId: WorkspaceModule, activeModule: WorkspaceModule) {
-  const current = moduleNav.findIndex((item) => item.id === activeModule);
-  const target = moduleNav.findIndex((item) => item.id === moduleId);
-  if (moduleId === activeModule) return "进行中";
-  if (target < current) return "已走过";
-  return "待演示";
-}
-
 function getProduct(decision: AgentDecision) {
   return menuCatalog.find((item) => item.id === decision.recommendation.productId);
 }
@@ -1429,9 +2182,9 @@ function queueLabel(queue: AgentDecision["selectedStore"]["queueLevel"]) {
 
 function statusLabel(status: AgentTraceStep["status"]) {
   const labels: Record<AgentTraceStep["status"], string> = {
-    used: "used",
-    guarded: "guarded",
-    fallback: "fallback"
+    used: "已采用",
+    guarded: "已校验",
+    fallback: "兜底"
   };
   return labels[status];
 }
@@ -1466,8 +2219,14 @@ function adapterStatus(status: AdapterBlueprint["status"]) {
   return labels[status];
 }
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root")! as HTMLElement & {
+  _luckinRoot?: ReturnType<typeof createRoot>;
+};
+const root = rootElement._luckinRoot ?? createRoot(rootElement);
+rootElement._luckinRoot = root;
+
+root.render(
   <StrictMode>
-    <App />
+    <XiaomanLuckinApp />
   </StrictMode>
 );
