@@ -60,7 +60,10 @@ function App() {
   const [scenarioId, setScenarioId] = useState(scenarios[0].id);
   const [request, setRequest] = useState(scenarios[0].text);
   const [activeModule, setActiveModule] = useState<WorkspaceModule>("briefing");
-  const [viewMode, setViewMode] = useState<ViewMode>("desktop");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined" && window.innerWidth <= 760) return "phone";
+    return "desktop";
+  });
   const [running, setRunning] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [accepted, setAccepted] = useState(64);
@@ -213,53 +216,271 @@ function App() {
       </aside>
 
       <section className="workspace">
-        <MissionComposer
-          request={request}
-          scenario={scenario}
-          decision={decision}
-          onRequestChange={setRequest}
-          onAccept={acceptPlan}
-          onFallback={fallbackPlan}
-        />
-
-        {activeModule === "execute" ? (
-          <ExecuteStudio
+        {viewMode === "phone" ? (
+          <PhoneExperience
             member={member}
+            scenario={scenario}
+            request={request}
             decision={decision}
             activeStep={activeStep}
             executionSteps={executionSteps}
             stepIndex={stepIndex}
             running={running}
-            onRun={startExecution}
-            onPause={() => setRunning(false)}
-            onReset={() => {
-              setRunning(false);
-              setStepIndex(0);
-            }}
+            isExecuting={activeModule === "execute"}
+            onRequestChange={setRequest}
+            onExecute={acceptPlan}
+            onPause={() => setRunning((value) => !value)}
+            onScenarioSelect={resetScenario}
           />
         ) : (
-          <div className="work-grid">
-            <section className="main-canvas">
-              {activeModule === "briefing" && (
-                <BriefingCanvas
-                  member={member}
-                  scenario={scenario}
-                  decision={decision}
-                  acceptanceRate={acceptanceRate}
-                  onExecute={startExecution}
-                />
-              )}
-              {activeModule === "dialogue" && <DialogueCanvas member={member} scenario={scenario} decision={decision} />}
-              {activeModule === "strategy" && <StrategyCanvas decision={decision} />}
-              {activeModule === "growth" && <GrowthCanvas decision={decision} acceptanceRate={acceptanceRate} />}
-              {activeModule === "connectors" && <ConnectorCanvas />}
-            </section>
+          <>
+            <MissionComposer
+              request={request}
+              scenario={scenario}
+              decision={decision}
+              onRequestChange={setRequest}
+              onAccept={acceptPlan}
+              onFallback={fallbackPlan}
+            />
 
-            <InsightPanel member={member} decision={decision} />
-          </div>
+            {activeModule === "execute" ? (
+              <ExecuteStudio
+                member={member}
+                decision={decision}
+                activeStep={activeStep}
+                executionSteps={executionSteps}
+                stepIndex={stepIndex}
+                running={running}
+                onRun={startExecution}
+                onPause={() => setRunning(false)}
+                onReset={() => {
+                  setRunning(false);
+                  setStepIndex(0);
+                }}
+              />
+            ) : (
+              <div className="work-grid">
+                <section className="main-canvas">
+                  {activeModule === "briefing" && (
+                    <BriefingCanvas
+                      member={member}
+                      scenario={scenario}
+                      decision={decision}
+                      acceptanceRate={acceptanceRate}
+                      onExecute={startExecution}
+                    />
+                  )}
+                  {activeModule === "dialogue" && <DialogueCanvas member={member} scenario={scenario} decision={decision} />}
+                  {activeModule === "strategy" && <StrategyCanvas decision={decision} />}
+                  {activeModule === "growth" && <GrowthCanvas decision={decision} acceptanceRate={acceptanceRate} />}
+                  {activeModule === "connectors" && <ConnectorCanvas />}
+                </section>
+
+                <InsightPanel member={member} decision={decision} />
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
+  );
+}
+
+function PhoneExperience({
+  member,
+  scenario,
+  request,
+  decision,
+  activeStep,
+  executionSteps,
+  stepIndex,
+  running,
+  isExecuting,
+  onRequestChange,
+  onExecute,
+  onPause,
+  onScenarioSelect
+}: {
+  member: Member;
+  scenario: Scenario;
+  request: string;
+  decision: AgentDecision;
+  activeStep: AutoStep;
+  executionSteps: AutoStep[];
+  stepIndex: number;
+  running: boolean;
+  isExecuting: boolean;
+  onRequestChange: (value: string) => void;
+  onExecute: () => void;
+  onPause: () => void;
+  onScenarioSelect: (scenario: Scenario) => void;
+}) {
+  const [locationMode, setLocationMode] = useState<"nearby" | "fallback">("nearby");
+
+  return (
+    <div className="phone-experience">
+      <header className="phone-topbar">
+        <div className="phone-logo">鹿</div>
+        <div>
+          <b>小鹿</b>
+          <span>{locationMode === "nearby" ? `${member.city} · ${decision.selectedStore.distanceMeters}m` : "常购门店兜底"}</span>
+        </div>
+        <button onClick={onExecute}>
+          <Bot size={14} />
+          执行
+        </button>
+      </header>
+
+      {isExecuting ? (
+        <section className="phone-execute-screen">
+          <PhoneApp member={member} decision={decision} activeStep={activeStep} />
+          <MobileChainSheet
+            activeStep={activeStep}
+            stepIndex={stepIndex}
+            total={executionSteps.length}
+            running={running}
+            onPause={onPause}
+          />
+        </section>
+      ) : (
+        <>
+          <section className="phone-chat-feed">
+            <PhoneBubble role="agent" name="小鹿 Agent">
+              像小满一样，先聊天把事说清楚：你只要说今天这杯咖啡解决什么问题，我来处理口味、券、门店、取餐和兜底。
+            </PhoneBubble>
+            <PhoneLocationCard
+              mode={locationMode}
+              decision={decision}
+              onUseNearby={() => setLocationMode("nearby")}
+              onUseFallback={() => setLocationMode("fallback")}
+            />
+            <PhoneBubble role="user" name={member.name}>
+              {scenario.text}
+            </PhoneBubble>
+            <PhonePlanCard member={member} decision={decision} onExecute={onExecute} />
+            <PhoneBubble role="agent" name="执行前确认">
+              已按 {decision.primaryIntent} 匹配 {decision.recommendation.name}，{decision.recommendation.temperature} / {decision.recommendation.sugar}，模拟到手 ¥{decision.couponPlan.finalPrice}。点执行后进入手机点单模拟，链路会用弹窗显示，并停在支付前。
+            </PhoneBubble>
+          </section>
+
+          <section className="phone-quick-row">
+            {scenarios.map((item) => (
+              <button className={item.id === scenario.id ? "active" : ""} key={item.id} onClick={() => onScenarioSelect(item)}>
+                {scenarioTitle(item)}
+              </button>
+            ))}
+          </section>
+
+          <footer className="phone-composer">
+            <input value={request} onChange={(event) => onRequestChange(event.target.value)} aria-label="手机端咖啡任务" />
+            <button onClick={onExecute} aria-label="执行点单">
+              <Play size={17} />
+            </button>
+          </footer>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PhoneLocationCard({
+  mode,
+  decision,
+  onUseNearby,
+  onUseFallback
+}: {
+  mode: "nearby" | "fallback";
+  decision: AgentDecision;
+  onUseNearby: () => void;
+  onUseFallback: () => void;
+}) {
+  return (
+    <article className="phone-location-card">
+      <div>
+        <MapPin size={16} />
+        <b>{mode === "nearby" ? "粗略定位已用于选店" : "已切到常购门店兜底"}</b>
+      </div>
+      <p>
+        {mode === "nearby"
+          ? `${decision.selectedStore.name} · ${decision.selectedStore.distanceMeters}m · ETA ${decision.selectedStore.pickupEtaMinutes} 分钟。`
+          : "不读取实时位置，沿用最近订单/常购门店和城市级信号，仍会在支付前让用户确认门店。"}
+      </p>
+      <div>
+        <button className={mode === "nearby" ? "active" : ""} onClick={onUseNearby}>用附近门店</button>
+        <button className={mode === "fallback" ? "active" : ""} onClick={onUseFallback}>拒绝定位</button>
+      </div>
+    </article>
+  );
+}
+
+function PhoneBubble({ role, name, children }: { role: "user" | "agent"; name: string; children: ReactNode }) {
+  return (
+    <article className={`phone-bubble ${role}`}>
+      <div className="phone-avatar">{role === "agent" ? "鹿" : "我"}</div>
+      <div>
+        <small>{name}</small>
+        <p>{children}</p>
+      </div>
+    </article>
+  );
+}
+
+function PhonePlanCard({ member, decision, onExecute }: { member: Member; decision: AgentDecision; onExecute: () => void }) {
+  return (
+    <article className="phone-plan-card">
+      <ProductMedia decision={decision} compact />
+      <div className="phone-plan-main">
+        <small>为 {member.name} 生成</small>
+        <h3>{decision.recommendation.name}</h3>
+        <p>{decision.recommendation.reason}</p>
+        <div className="phone-plan-tags">
+          <span>{decision.confidence}% 稳</span>
+          <span>{decision.selectedStore.pickupEtaMinutes} 分钟</span>
+          <span>¥{decision.couponPlan.finalPrice}</span>
+        </div>
+      </div>
+      <button onClick={onExecute}>
+        <Bot size={15} />
+        执行点单
+      </button>
+    </article>
+  );
+}
+
+function MobileChainSheet({
+  activeStep,
+  stepIndex,
+  total,
+  running,
+  onPause
+}: {
+  activeStep: AutoStep;
+  stepIndex: number;
+  total: number;
+  running: boolean;
+  onPause: () => void;
+}) {
+  return (
+    <aside className="mobile-chain-sheet">
+      <div className="sheet-grip" />
+      <div className="sheet-head">
+        <div>
+          <b>{running ? "执行链路运行中" : "执行链路暂停"}</b>
+          <span>Step {stepIndex + 1}/{total}</span>
+        </div>
+        <button onClick={onPause}>{running ? <Pause size={15} /> : <Play size={15} />}</button>
+      </div>
+      <meter min="0" max={total - 1} value={stepIndex} />
+      <div className="sheet-step">
+        <small>Observe</small>
+        <p>{activeStep.observation}</p>
+      </div>
+      <div className="sheet-action">
+        <small>Action</small>
+        <b>{activeStep.action}</b>
+        <span>{activeStep.target}</span>
+      </div>
+    </aside>
   );
 }
 

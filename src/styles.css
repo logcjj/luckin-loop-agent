@@ -474,6 +474,10 @@ strong {
   overflow: auto;
 }
 
+.view-phone .workspace {
+  display: block;
+}
+
 .view-phone .mission-bar,
 .view-phone .work-grid,
 .view-phone .execute-studio {
@@ -517,6 +521,413 @@ strong {
 
 .view-phone .agent-runway {
   grid-template-columns: 1fr;
+}
+
+.phone-experience {
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr) auto auto;
+  min-height: calc(100vh - 64px);
+  background: #f6f7f9;
+}
+
+.phone-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgb(255 255 255 / 94%);
+  backdrop-filter: blur(12px);
+}
+
+.phone-logo {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: var(--brand);
+  font-weight: 950;
+}
+
+.phone-topbar b,
+.phone-topbar span {
+  display: block;
+}
+
+.phone-topbar span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.phone-topbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 0 11px;
+  color: #ffffff;
+  background: var(--brand);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.phone-chat-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 12px 10px;
+}
+
+.phone-bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.phone-bubble.user {
+  flex-direction: row-reverse;
+}
+
+.phone-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #ffffff;
+  background: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.phone-bubble.user .phone-avatar {
+  background: var(--coffee);
+}
+
+.phone-bubble > div:last-child {
+  max-width: calc(100% - 40px);
+  border: 1px solid #dfe6ef;
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(20 32 51 / 5%);
+}
+
+.phone-bubble.user > div:last-child {
+  color: #ffffff;
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.phone-bubble small {
+  display: block;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.phone-bubble.user small {
+  color: #dce9ff;
+}
+
+.phone-bubble p {
+  margin-top: 4px;
+  color: #2f3d4f;
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.phone-bubble.user p {
+  color: #ffffff;
+}
+
+.phone-plan-card {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  border: 1px solid #d5e1ef;
+  border-radius: 18px;
+  padding: 12px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.phone-location-card {
+  border: 1px solid #d6e5f4;
+  border-radius: 16px;
+  padding: 11px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(20 32 51 / 5%);
+}
+
+.phone-location-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--brand);
+}
+
+.phone-location-card b {
+  color: #1b2c44;
+  font-size: 13px;
+}
+
+.phone-location-card p {
+  margin-top: 6px;
+  color: #4d5b70;
+  font-size: 12px;
+  line-height: 1.48;
+}
+
+.phone-location-card > div:last-child {
+  display: flex;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.phone-location-card button {
+  flex: 1 1 0;
+  min-height: 30px;
+  border-radius: 999px;
+  color: #536174;
+  background: #eef2f6;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.phone-location-card button.active {
+  color: #ffffff;
+  background: var(--brand);
+}
+
+.phone-plan-card .product-photo.compact {
+  width: 82px;
+}
+
+.phone-plan-card .product-photo.compact img {
+  max-width: 82px;
+  border-radius: 14px;
+}
+
+.phone-plan-main small,
+.phone-plan-main h3,
+.phone-plan-main p {
+  display: block;
+}
+
+.phone-plan-main small {
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.phone-plan-main h3 {
+  margin-top: 3px;
+  font-size: 18px;
+}
+
+.phone-plan-main p {
+  margin-top: 5px;
+  color: #4d5b70;
+  font-size: 12px;
+  line-height: 1.48;
+}
+
+.phone-plan-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.phone-plan-tags span {
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #164b7c;
+  background: var(--brand-soft);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.phone-plan-card > button {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  border-radius: 12px;
+  color: #ffffff;
+  background: var(--brand);
+  font-weight: 900;
+}
+
+.phone-quick-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 12px 10px;
+}
+
+.phone-quick-row button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  border-radius: 999px;
+  padding: 0 11px;
+  color: #536174;
+  background: #eef2f6;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.phone-quick-row button.active {
+  color: #ffffff;
+  background: var(--coffee);
+}
+
+.phone-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+  background: rgb(255 255 255 / 94%);
+  backdrop-filter: blur(12px);
+}
+
+.phone-composer input {
+  min-width: 0;
+  height: 42px;
+  border: 1px solid #d6e0ec;
+  border-radius: 999px;
+  outline: 0;
+  padding: 0 14px;
+  background: #f8fafc;
+}
+
+.phone-composer button {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: var(--brand);
+}
+
+.phone-execute-screen {
+  position: relative;
+  min-height: calc(100vh - 122px);
+  overflow: hidden;
+  background: #f6f8fb;
+}
+
+.phone-execute-screen .phone-app {
+  height: calc(100vh - 122px);
+}
+
+.mobile-chain-sheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 30;
+  border: 1px solid #cfe0f4;
+  border-radius: 18px;
+  padding: 9px 12px 12px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 16px 40px rgb(20 32 51 / 18%);
+  backdrop-filter: blur(16px);
+}
+
+.sheet-grip {
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  background: #d0d9e5;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sheet-head b,
+.sheet-head span {
+  display: block;
+}
+
+.sheet-head b {
+  color: #17283d;
+}
+
+.sheet-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sheet-head button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: var(--brand);
+}
+
+.mobile-chain-sheet meter {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.sheet-step,
+.sheet-action {
+  margin-top: 8px;
+  border-radius: 12px;
+  padding: 9px;
+  background: #f4f8ff;
+}
+
+.sheet-step small,
+.sheet-action small {
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sheet-step p,
+.sheet-action span {
+  display: block;
+  margin-top: 3px;
+  color: #405068;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sheet-action b {
+  display: block;
+  margin-top: 3px;
+  color: #123226;
+  font-size: 13px;
 }
 
 .mission-bar {
@@ -1976,12 +2387,18 @@ meter {
   }
 
   .navigator {
-    display: block;
-    padding: 12px;
+    display: none;
   }
 
   .flow-step {
     flex: 0 0 148px;
+  }
+
+  .view-phone .workspace {
+    width: 100%;
+    min-height: calc(100vh - 64px);
+    border-inline: 0;
+    box-shadow: none;
   }
 
   .mission-bar,
