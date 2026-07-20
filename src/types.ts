@@ -7,8 +7,12 @@ export type ProductCategory = "latte" | "americano" | "fruit-coffee" | "tea-coff
 export type CoffeeProduct = {
   id: string;
   name: string;
+  officialName?: string;
   category: ProductCategory;
   basePrice: number;
+  imageUrl?: string;
+  imageSourceUrl?: string;
+  imageSourceName?: string;
   caffeineLevel: "low" | "medium" | "high";
   sweetnessOptions: string[];
   temperatureOptions: string[];

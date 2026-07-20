@@ -4,8 +4,12 @@ export const menuCatalog: CoffeeProduct[] = [
   {
     id: "p-coconut-latte",
     name: "生椰拿铁",
+    officialName: "Coconut Latte",
     category: "latte",
     basePrice: 21,
+    imageUrl: "https://ilucky-fe-outside-aws-prod.luckincdn.us/iadmin/mmx6ylqv_00e8cfe5e352_aws_2.jpg",
+    imageSourceUrl: "https://www.luckincoffee.us/menu/signature-lattes",
+    imageSourceName: "Luckin Coffee US official menu",
     caffeineLevel: "medium",
     sweetnessOptions: ["无糖", "少糖", "半糖", "标准"],
     temperatureOptions: ["冰", "热"],
@@ -13,13 +17,17 @@ export const menuCatalog: CoffeeProduct[] = [
     nutritionTags: ["可选少糖", "乳基底", "中等咖啡因"],
     sceneTags: ["下午提神", "稳定复购", "轻甜口"],
     launchType: "evergreen",
-    sourceNote: "公开菜单灵感 + demo mock 价格，非瑞幸实时商品接口。"
+    sourceNote: "商品名和图片参考 Luckin Coffee US 官方菜单；中国区价格、库存和券为 demo mock，非瑞幸实时商品接口。"
   },
   {
     id: "p-velvet-latte",
     name: "丝绒拿铁",
+    officialName: "Velvet Latte",
     category: "latte",
     basePrice: 23,
+    imageUrl: "https://ilucky-fe-outside-aws-prod.luckincdn.us/iadmin/mmx6zeya_29541f3e71bc_aws_2.jpg",
+    imageSourceUrl: "https://www.luckincoffee.us/menu/signature-lattes",
+    imageSourceName: "Luckin Coffee US official menu",
     caffeineLevel: "medium",
     sweetnessOptions: ["少糖", "半糖", "标准"],
     temperatureOptions: ["冰", "热"],
@@ -27,13 +35,17 @@ export const menuCatalog: CoffeeProduct[] = [
     nutritionTags: ["乳基底", "口感厚", "可做热饮"],
     sceneTags: ["阴天", "会议前", "高确定性"],
     launchType: "evergreen",
-    sourceNote: "demo 商品库，用于展示 Agent 推荐链路。"
+    sourceNote: "商品名和图片参考 Luckin Coffee US 官方菜单；本地推荐链路使用 mock 价格和库存。"
   },
   {
     id: "p-americano",
     name: "标准美式",
+    officialName: "Yirgacheffe Americano",
     category: "americano",
     basePrice: 16,
+    imageUrl: "https://ilucky-fe-outside-aws-prod.luckincdn.us/iadmin/mmx6tau2_e48aa202c66b_aws_2.jpg",
+    imageSourceUrl: "https://www.luckincoffee.us/menu/single-origin-espresso",
+    imageSourceName: "Luckin Coffee US official menu",
     caffeineLevel: "high",
     sweetnessOptions: ["无糖"],
     temperatureOptions: ["冰", "热"],
@@ -41,13 +53,17 @@ export const menuCatalog: CoffeeProduct[] = [
     nutritionTags: ["无糖", "低热量", "高咖啡因"],
     sceneTags: ["早高峰", "快取", "忠诚复购"],
     launchType: "evergreen",
-    sourceNote: "demo 商品库，用于展示固定口味复购。"
+    sourceNote: "图片参考 Luckin Coffee US 官方单品美式；中文名、价格和门店履约为 demo mock。"
   },
   {
     id: "p-orange-c-americano",
     name: "橙 C 美式",
+    officialName: "Orange Americano",
     category: "fruit-coffee",
     basePrice: 19,
+    imageUrl: "https://ilucky-fe-outside-aws-prod.luckincdn.us/iadmin/mmx6w8m4_6a538d565474_aws_2.jpg",
+    imageSourceUrl: "https://www.luckincoffee.us/menu/fruity-americano",
+    imageSourceName: "Luckin Coffee US official menu",
     caffeineLevel: "medium",
     sweetnessOptions: ["少糖", "标准"],
     temperatureOptions: ["冰"],
@@ -55,13 +71,17 @@ export const menuCatalog: CoffeeProduct[] = [
     nutritionTags: ["果汁风味", "冰饮", "酸甜感"],
     sceneTags: ["新品尝鲜", "沉睡唤醒", "社交种草"],
     launchType: "campaign",
-    sourceNote: "参考果咖品类趋势的 mock 商品。"
+    sourceNote: "商品图片参考 Luckin Coffee US 官方菜单 Orange Americano；价格、券和库存为 mock。"
   },
   {
     id: "p-light-tea-coffee",
     name: "轻乳茶咖",
+    officialName: "Creamy Dreamy Latte",
     category: "tea-coffee",
     basePrice: 22,
+    imageUrl: "https://ilucky-fe-outside-aws-prod.luckincdn.us/iadmin/mmx70jxf_ba0ce592a8dd_aws_2.jpg",
+    imageSourceUrl: "https://www.luckincoffee.us/menu/signature-lattes",
+    imageSourceName: "Luckin Coffee US official menu",
     caffeineLevel: "low",
     sweetnessOptions: ["无糖", "少糖", "半糖"],
     temperatureOptions: ["冰"],
@@ -69,13 +89,17 @@ export const menuCatalog: CoffeeProduct[] = [
     nutritionTags: ["低糖可选", "低咖啡因", "下午轻负担"],
     sceneTags: ["健康心智", "新会员", "下午不负担"],
     launchType: "seasonal",
-    sourceNote: "demo 商品库，用于展示健康偏好解释。"
+    sourceNote: "图片借用 Luckin Coffee US 官方 Creamy Dreamy Latte 作为近似视觉；商品语义为健康偏好 demo mock。"
   },
   {
     id: "p-oat-flat-white",
     name: "燕麦澳瑞白",
+    officialName: "Yirgacheffe Flat White",
     category: "latte",
     basePrice: 24,
+    imageUrl: "https://ilucky-fe-outside-aws-prod.luckincdn.us/iadmin/mmx6vi7e_e4fe3f220983_aws_2.jpg",
+    imageSourceUrl: "https://www.luckincoffee.us/menu/single-origin-espresso",
+    imageSourceName: "Luckin Coffee US official menu",
     caffeineLevel: "medium",
     sweetnessOptions: ["无糖", "少糖"],
     temperatureOptions: ["热", "冰"],
@@ -83,7 +107,7 @@ export const menuCatalog: CoffeeProduct[] = [
     nutritionTags: ["植物基", "可无糖", "乳糖敏感友好"],
     sceneTags: ["健康升级", "冬季热饮", "高客单"],
     launchType: "seasonal",
-    sourceNote: "demo 商品库，非官方实时库存。"
+    sourceNote: "图片参考 Luckin Coffee US 官方 Flat White；燕麦口味、价格和库存为 demo mock。"
   }
 ];
 

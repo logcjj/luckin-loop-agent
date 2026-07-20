@@ -32,23 +32,47 @@
 
 ## Task 3: 首屏与内容显示升级
 
-- 状态：pending
+- 状态：completed
 - 可验证目标：
   - 优化桌面端首屏信息密度、层级和美术风格。
   - 新增业务闭环/Agent 配置/指标展示，使内容不空洞。
   - 展示商品候选、Agent trace、门店策略、guardrail、fallback 等 Task 2 新字段。
   - 所有文字不溢出，按钮和卡片稳定。
 - 完成记录：
+  - 在 `src/main.tsx` 重构首屏信息：展示 Agent 置信、取餐 ETA、候选商品数、选中门店、边界条数，并将对话回复摘要升级为商品 + 门店 + 券包 + 边界解释。
+  - 在方案面板展示 Task 2 新字段：候选商品评分、风味/营养标签、门店策略、Agent 编排 Trace。
+  - 在画像面板补充会员等级、积分、persona、权益、授权范围、最近订单，避免画像只剩浅层标签。
+  - 在执行面板补充门店履约策略、完整执行链路、guardrail 列表和 fallback plan。
+  - 在复购面板补充体验指标参照，连接推荐接受率、决策时长、沉睡唤醒、履约稳定度。
+  - 在 `src/styles.css` 将主视觉从通用绿色调整为瑞幸感更强的蓝白主色 + 咖啡暖色强调，新增评分条、Trace 状态、商品视觉槽位、轻量进入/浮动动画，并加入 `prefers-reduced-motion` 降级。
+  - 已执行 `npm run build`，TypeScript 与 Vite 生产构建通过。
+  - 已用 Playwright 打开本地页面，检查桌面首屏、方案/执行/画像 tab；发现并修复了中栏标题、指标和摘要被右侧 canvas 挤压的问题。
+  - 用户审美复核未通过：当前版本仍偏工程后台，蓝白替换和信息堆叠不足以达到参考项目的视觉完成度；Task 3 重新打开，需要进一步参考 `bcefghj` 项目的内容组织、视觉层次和演示包装后再收口。
+  - 用户追加 GUI-Agent 方向后，本 task 需要把自动执行模块纳入信息架构：首屏不再只是右侧卡片，应呈现“真实 App/手机执行窗口 + Agent 运行小窗”的核心作品记忆点。
+  - 根据用户纠偏，重新收敛边界：GUI-Agent 不再作为全站主壳，只保留在“自动执行”模块；主页面默认是咖啡 Agent 工作台，包含今日任务、Agent 对话、推荐策略、自动执行、增长回写、数据接入六个模块。
+  - 参考 `bcefghj/xiaoman` README 的“三幕故事 / 电脑手机视图 / 真办事兜底 / 记忆进化”表达，以及 `bcefghj/hire-easy` 的 `FlowNav`、`ModeToggle`、`DesktopShell`、`PhoneShell` 结构，把左栏重做为演示导演式 FlowNav：展示三幕咖啡旅程、网页/手机预览切换、编号进度、场景脚本、会员分身和能力挂载。
+  - 接入可追溯商品图片：从 `https://www.luckincoffee.us/menu/signature-lattes`、`/menu/fruity-americano`、`/menu/single-origin-espresso` 解析 Luckin Coffee US 官方菜单内嵌数据，为生椰拿铁、丝绒拿铁、橙 C 美式、美式、Flat White 视觉补充官方 CDN 图片；UI 中显示来源为 `Luckin Coffee US official menu`，并保留价格/库存/券为 mock 的边界说明。
+  - 在 `src/main.tsx` 新增 `ProductMedia`、`ProductThumb`，让 hero、手机商品页、搜索结果、候选排序都出现真实咖啡图片，而不是抽象杯子。
+  - 新增“网页 / 手机”预览模式，手机模式会把工作区收窄并改为窄屏可滚动布局；真正的手机端 Agent 对话 App-like 体验仍留给 Task 4，不在本 task 中假装完成。
+  - 已执行 `npm run build`，TypeScript 与 Vite 生产构建通过。
+  - 已用 Playwright 检查桌面首屏、真实图片加载、自动执行模块、手机预览模式，并确认 console 无 error/warning。
+  - 自信检查：当前 task 对“首屏、左侧流程导航、真实商品图、GUI-Agent 模块边界”的修复已经达到可提交状态；手机端深度、地理定位、商品/会员真实 adapter 属于后续 Task 4/5。
 
 ## 大型全面检查 Debug 循环 A
 
-- 状态：pending
+- 状态：completed
 - 覆盖范围：
   - TypeScript build
   - 桌面 UI 检查
   - 核心交互检查
   - 数据解释一致性检查
 - 完成记录：
+  - TypeScript/Vite：执行 `npm run build` 通过。
+  - 桌面 UI：Playwright 1280x720 截图检查默认首屏，左侧 FlowNav、hero 商品图、会员画像、信任解释均可见，未发现主要重叠。
+  - 自动执行：Playwright 点击“查看自动执行”，确认手机大窗 + GUI-Agent cockpit 小窗出现，执行链路可推进到支付前停止。
+  - 手机 smoke：Playwright 390px 宽度截图检查，无结构性横向溢出；另测试“手机”预览切换，工作区可收窄滚动。
+  - 数据解释一致性：商品图片来源显示为 Luckin Coffee US official menu；价格、库存、券、会员和支付仍明确为 mock/演示边界。
+  - Console：Playwright `console error` / `console warning` 检查无错误和警告。
 
 ## Task 4: 移动端与响应式体验
 
@@ -58,6 +82,7 @@
   - rail、chat、canvas 在窄屏自然重排。
   - tab、输入框、快捷 prompt、卡片按钮均可触达。
   - 手机端有明确的商品视觉、门店距离、授权/拒绝定位 fallback，不只是桌面布局缩小。
+  - 手机端自动执行模块需可模拟“一个大窗操作 + 一个小窗进度”，并保持支付前停止的安全边界。
 - 完成记录：
 
 ## Task 5: 真实商品、图片、地理位置与 adapter 设计
