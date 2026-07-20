@@ -692,6 +692,17 @@ strong {
   line-height: 1.48;
 }
 
+.phone-location-card > small {
+  display: inline-flex;
+  margin-top: 7px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--brand);
+  background: var(--brand-soft);
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .phone-location-card > div:last-child {
   display: flex;
   gap: 7px;
@@ -1673,6 +1684,25 @@ meter {
   grid-column: 1 / -1;
 }
 
+.source-grid,
+.adapter-grid,
+.connector-status-list {
+  display: grid;
+  gap: 10px;
+}
+
+.source-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.adapter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.connector-status-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .connector-head {
   justify-content: space-between;
   gap: 10px;
@@ -1701,9 +1731,162 @@ meter {
   background: #ffe8ee;
 }
 
+.source-card,
+.adapter-card,
 .connector-card b {
   display: block;
+}
+
+.source-card,
+.adapter-card,
+.connector-card {
+  min-width: 0;
+  border: 1px solid #dbe6f3;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.source-card > div:first-child,
+.adapter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.source-kind,
+.adapter-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  border-radius: 999px;
+  padding: 0 8px;
+  color: var(--brand);
+  background: var(--brand-soft);
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.kind-browser-api,
+.adapter-ready-to-wire {
+  color: var(--mint);
+  background: #e5f8f2;
+}
+
+.kind-synthetic-demo,
+.adapter-mock-only {
+  color: var(--coffee);
+  background: var(--coffee-soft);
+}
+
+.kind-blocked-private,
+.adapter-blocked {
+  color: var(--rose);
+  background: #ffe8ee;
+}
+
+.source-card > div:first-child small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.source-card b,
+.adapter-head b {
   margin-top: 10px;
+  color: #17283d;
+}
+
+.adapter-head b {
+  margin-top: 0;
+}
+
+.source-card p,
+.adapter-card p,
+.source-card dd,
+.adapter-columns span,
+.adapter-guard span,
+.adapter-disclosure {
+  color: #536174;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.source-card p,
+.adapter-card p {
+  margin-top: 7px;
+}
+
+.source-card a {
+  display: inline-flex;
+  margin-top: 8px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.source-card dl {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+}
+
+.source-card dt,
+.adapter-columns small {
+  color: #1d2d43;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.source-card dd {
+  margin: 0;
+}
+
+.adapter-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.adapter-columns div {
+  border-radius: 8px;
+  padding: 9px;
+  background: #f4f8ff;
+}
+
+.adapter-columns small,
+.adapter-columns span {
+  display: block;
+}
+
+.adapter-columns span {
+  margin-top: 3px;
+}
+
+.adapter-guard {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  border-radius: 8px;
+  padding: 9px;
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.adapter-guard svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.adapter-disclosure {
+  display: block;
+  margin-top: 10px;
+  color: var(--coffee);
+}
+
+.connector-card b {
   color: #17283d;
 }
 
@@ -2358,7 +2541,10 @@ meter {
   .strategy-layout,
   .growth-layout,
   .connector-layout,
-  .insight-panel {
+  .insight-panel,
+  .source-grid,
+  .adapter-grid,
+  .connector-status-list {
     grid-template-columns: 1fr;
   }
 

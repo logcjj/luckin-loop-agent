@@ -26,9 +26,18 @@ import {
   UserRound,
   Zap
 } from "lucide-react";
-import { agentModules, dataConnectors, experienceMetrics, members, menuCatalog, scenarios } from "./data/demoData";
+import {
+  adapterBlueprints,
+  agentModules,
+  dataConnectors,
+  dataSources,
+  experienceMetrics,
+  members,
+  menuCatalog,
+  scenarios
+} from "./data/demoData";
 import { generateDecision } from "./logic/agent";
-import type { AgentDecision, AgentTraceStep, DataConnector, Member, Scenario } from "./types";
+import type { AdapterBlueprint, AgentDecision, AgentTraceStep, DataConnector, DataSourceRecord, Member, Scenario } from "./types";
 import "./styles.css";
 
 type WorkspaceModule = "briefing" | "dialogue" | "strategy" | "execute" | "growth" | "connectors";
@@ -316,6 +325,28 @@ function PhoneExperience({
   onScenarioSelect: (scenario: Scenario) => void;
 }) {
   const [locationMode, setLocationMode] = useState<"nearby" | "fallback">("nearby");
+  const [geoState, setGeoState] = useState<"idle" | "requesting" | "granted" | "denied" | "unsupported">("idle");
+
+  function requestNearbyStore() {
+    if (!("geolocation" in navigator)) {
+      setGeoState("unsupported");
+      setLocationMode("fallback");
+      return;
+    }
+
+    setGeoState("requesting");
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        setGeoState("granted");
+        setLocationMode("nearby");
+      },
+      () => {
+        setGeoState("denied");
+        setLocationMode("fallback");
+      },
+      { enableHighAccuracy: false, maximumAge: 0, timeout: 4500 }
+    );
+  }
 
   return (
     <div className="phone-experience">
@@ -350,9 +381,13 @@ function PhoneExperience({
             </PhoneBubble>
             <PhoneLocationCard
               mode={locationMode}
+              geoState={geoState}
               decision={decision}
-              onUseNearby={() => setLocationMode("nearby")}
-              onUseFallback={() => setLocationMode("fallback")}
+              onUseNearby={requestNearbyStore}
+              onUseFallback={() => {
+                setGeoState("denied");
+                setLocationMode("fallback");
+              }}
             />
             <PhoneBubble role="user" name={member.name}>
               {scenario.text}
@@ -385,15 +420,25 @@ function PhoneExperience({
 
 function PhoneLocationCard({
   mode,
+  geoState,
   decision,
   onUseNearby,
   onUseFallback
 }: {
   mode: "nearby" | "fallback";
+  geoState: "idle" | "requesting" | "granted" | "denied" | "unsupported";
   decision: AgentDecision;
   onUseNearby: () => void;
   onUseFallback: () => void;
 }) {
+  const statusCopy = {
+    idle: "未请求精确定位",
+    requesting: "正在请求浏览器授权",
+    granted: "已授权，本轮不保存坐标",
+    denied: "已拒绝，走常购门店",
+    unsupported: "浏览器不支持定位"
+  }[geoState];
+
   return (
     <article className="phone-location-card">
       <div>
@@ -405,8 +450,11 @@ function PhoneLocationCard({
           ? `${decision.selectedStore.name} · ${decision.selectedStore.distanceMeters}m · ETA ${decision.selectedStore.pickupEtaMinutes} 分钟。`
           : "不读取实时位置，沿用最近订单/常购门店和城市级信号，仍会在支付前让用户确认门店。"}
       </p>
+      <small>{statusCopy}</small>
       <div>
-        <button className={mode === "nearby" ? "active" : ""} onClick={onUseNearby}>用附近门店</button>
+        <button className={mode === "nearby" ? "active" : ""} onClick={onUseNearby}>
+          {geoState === "requesting" ? "授权中..." : "用附近门店"}
+        </button>
         <button className={mode === "fallback" ? "active" : ""} onClick={onUseFallback}>拒绝定位</button>
       </div>
     </article>
@@ -702,14 +750,34 @@ function GrowthCanvas({ decision, acceptanceRate }: { decision: AgentDecision; a
 function ConnectorCanvas() {
   return (
     <div className="connector-layout">
-      {dataConnectors.map((connector) => (
-        <ConnectorCard key={connector.id} connector={connector} />
-      ))}
+      <section className="panel-card full-span source-board">
+        <SectionTitle icon={<Database size={16} />} title="公开来源与可用范围" />
+        <div className="source-grid">
+          {dataSources.map((source) => <SourceCard key={source.id} source={source} />)}
+        </div>
+      </section>
+
+      <section className="panel-card full-span">
+        <SectionTitle icon={<Zap size={16} />} title="Adapter 蓝图" />
+        <div className="adapter-grid">
+          {adapterBlueprints.map((adapter) => <AdapterCard key={adapter.id} adapter={adapter} />)}
+        </div>
+      </section>
+
+      <section className="panel-card connector-summary">
+        <SectionTitle icon={<Database size={16} />} title="数据域状态" />
+        <div className="connector-status-list">
+          {dataConnectors.map((connector) => (
+            <ConnectorCard key={connector.id} connector={connector} />
+          ))}
+        </div>
+      </section>
+
       <section className="panel-card full-span">
         <SectionTitle icon={<ShieldCheck size={16} />} title="真实数据边界" />
         <p>
-          商品、价格、库存、会员、券和支付都需要官方授权接口；当前页面用合成数据展示 Agent 架构，
-          不能声明为瑞幸实时结果，也不会创建真实订单。
+          商品图片来自公开官方菜单页面；价格、库存、会员、券和支付都需要官方授权接口。当前页面用合成数据展示 Agent 架构，
+          不能声明为瑞幸中国区实时结果，也不会创建真实订单、扣券或扣款。
         </p>
       </section>
     </div>
@@ -1097,7 +1165,7 @@ function Message({ role, name, children }: { role: "user" | "agent"; name: strin
 
 function ConnectorCard({ connector }: { connector: DataConnector }) {
   return (
-    <section className="panel-card connector-card">
+    <article className="connector-card">
       <div className="connector-head">
         <SectionTitle icon={<Database size={16} />} title={connector.name} />
         <span className={`status-chip status-${connector.status}`}>{connectorStatus(connector.status)}</span>
@@ -1107,7 +1175,54 @@ function ConnectorCard({ connector }: { connector: DataConnector }) {
       <p>{connector.permissionBoundary}</p>
       <b>UI 露出</b>
       <p>{connector.uiDisclosure}</p>
-    </section>
+    </article>
+  );
+}
+
+function SourceCard({ source }: { source: DataSourceRecord }) {
+  return (
+    <article className="source-card">
+      <div>
+        <span className={`source-kind kind-${source.kind}`}>{sourceKind(source.kind)}</span>
+        <small>{source.lastChecked}</small>
+      </div>
+      <b>{source.name}</b>
+      <p>{source.evidence}</p>
+      {source.sourceUrl && <a href={source.sourceUrl} target="_blank" rel="noreferrer">查看来源</a>}
+      <dl>
+        <dt>可用于</dt>
+        <dd>{source.canUseFor.join(" / ")}</dd>
+        <dt>不可用于</dt>
+        <dd>{source.cannotUseFor.join(" / ")}</dd>
+      </dl>
+    </article>
+  );
+}
+
+function AdapterCard({ adapter }: { adapter: AdapterBlueprint }) {
+  return (
+    <article className="adapter-card">
+      <div className="adapter-head">
+        <b>{adapter.name}</b>
+        <span className={`adapter-status adapter-${adapter.status}`}>{adapterStatus(adapter.status)}</span>
+      </div>
+      <p>{adapter.implementation}</p>
+      <div className="adapter-columns">
+        <div>
+          <small>读取</small>
+          <span>{adapter.reads.join(" / ")}</span>
+        </div>
+        <div>
+          <small>写入</small>
+          <span>{adapter.writes.join(" / ")}</span>
+        </div>
+      </div>
+      <div className="adapter-guard">
+        <ShieldCheck size={15} />
+        <span>{adapter.guardrail}</span>
+      </div>
+      <small className="adapter-disclosure">{adapter.uiDisclosure}</small>
+    </article>
   );
 }
 
@@ -1312,6 +1427,27 @@ function connectorStatus(status: DataConnector["status"]) {
   const labels: Record<DataConnector["status"], string> = {
     mocked: "mocked",
     "ready-to-wire": "ready",
+    blocked: "blocked"
+  };
+  return labels[status];
+}
+
+function sourceKind(kind: DataSourceRecord["kind"]) {
+  const labels: Record<DataSourceRecord["kind"], string> = {
+    "official-menu": "official menu",
+    "official-site": "official site",
+    "browser-api": "browser API",
+    "synthetic-demo": "synthetic",
+    "blocked-private": "blocked"
+  };
+  return labels[kind];
+}
+
+function adapterStatus(status: AdapterBlueprint["status"]) {
+  const labels: Record<AdapterBlueprint["status"], string> = {
+    "implemented-snapshot": "snapshot",
+    "ready-to-wire": "ready",
+    "mock-only": "mock",
     blocked: "blocked"
   };
   return labels[status];

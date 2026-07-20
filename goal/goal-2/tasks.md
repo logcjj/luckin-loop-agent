@@ -95,13 +95,24 @@
 
 ## Task 5: 真实商品、图片、地理位置与 adapter 设计
 
-- 状态：pending
+- 状态：completed
 - 可验证目标：
   - 调研公开可用的瑞幸商品/品牌信息与图片来源，明确哪些可真实引用、哪些只能 mock。
   - 增加 mock adapter 或文档，说明如何接菜单、门店、券包、会员信息、地理位置和商品图片。
   - 明确隐私、安全、授权和非真实支付边界。
   - UI 中不误导为真实下单。
 - 完成记录：
+  - 调研并固化公开来源边界：Luckin Coffee US 官方菜单页 `signature-lattes`、`fruity-americano`、`single-origin-espresso` 可用于商品英文名、公开描述和官方 CDN 图片；官网 App/Stores 入口可作为 App 点单、会员权益、门店入口的体验参照；中国区实时价格、库存、券包、会员和支付没有授权接口，不能声明为真实结果。
+  - 在 `src/types.ts` 新增 `DataSourceRecord`、`AdapterBlueprint`，区分 official menu、official site、browser API、synthetic demo、blocked private 等来源类型。
+  - 在 `src/data/demoData.ts` 新增 `dataSources` 与 `adapterBlueprints`：覆盖官方菜单图片 Snapshot Adapter、定位授权与门店兜底 Adapter、会员权益 Adapter、下单支付 Adapter、门店履约 Adapter，并给出 reads/writes、permission、implementation、guardrail、uiDisclosure。
+  - 在 `src/main.tsx` 重做数据接入页：展示“公开来源与可用范围”、“Adapter 蓝图”、“数据域状态”和“真实数据边界”，让评审能看到哪些字段真实、哪些 mock、哪些 blocked。
+  - 手机端定位卡接入浏览器 Geolocation API：用户点击“用附近门店”才请求授权；授权失败/拒绝会切到“常购门店兜底”；本 demo 不保存精确坐标、不后台定位。
+  - 更新 `docs/data-sample.md`，写明官方图片来源、可用/不可用范围、adapter 蓝图、隐私与安全边界。
+  - 更新 `docs/demo-design.md`，修正旧的四页签/模拟支付描述，改为当前的桌面 FlowNav、手机聊天起手、执行链路弹窗和支付前停止。
+  - 已执行 `npm run build` 和 `git diff --check`，均通过。
+  - 已用 Playwright 检查桌面数据接入页，确认可见 `Luckin Coffee US Signature Lattes`、`官方菜单图片 Snapshot Adapter`、`真实数据边界`，console 无 error。
+  - 已用 Playwright 390x844 检查手机定位授权路径，浏览器拒绝后自动切到常购门店兜底，console 无 error。
+  - 自信检查：当前 task 已完成“真实商品/图片来源、地理位置授权体验、adapter 设计、隐私/安全/非真实支付边界、文档一致性”。后续 Task 6 继续做 README/交付包装和演示脚本，不在本 task 中扩大到完整文档重写。
 
 ## Task 6: 文档、演示脚本与交付包装
 

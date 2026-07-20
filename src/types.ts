@@ -173,3 +173,27 @@ export type DataConnector = {
   permissionBoundary: string;
   uiDisclosure: string;
 };
+
+export type DataSourceRecord = {
+  id: string;
+  name: string;
+  kind: "official-menu" | "official-site" | "browser-api" | "synthetic-demo" | "blocked-private";
+  sourceUrl?: string;
+  lastChecked: string;
+  evidence: string;
+  canUseFor: string[];
+  cannotUseFor: string[];
+};
+
+export type AdapterBlueprint = {
+  id: string;
+  name: string;
+  status: "implemented-snapshot" | "ready-to-wire" | "mock-only" | "blocked";
+  sourceIds: string[];
+  reads: string[];
+  writes: string[];
+  permission: string;
+  implementation: string;
+  guardrail: string;
+  uiDisclosure: string;
+};

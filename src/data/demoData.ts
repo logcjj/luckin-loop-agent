@@ -1,4 +1,14 @@
-import type { AgentModule, CoffeeProduct, DataConnector, ExperienceMetric, Member, Scenario, StoreStatus } from "../types";
+import type {
+  AdapterBlueprint,
+  AgentModule,
+  CoffeeProduct,
+  DataConnector,
+  DataSourceRecord,
+  ExperienceMetric,
+  Member,
+  Scenario,
+  StoreStatus
+} from "../types";
 
 export const menuCatalog: CoffeeProduct[] = [
   {
@@ -261,6 +271,140 @@ export const dataConnectors: DataConnector[] = [
     dataScope: "模拟留位、模拟支付结果、模拟回写。",
     permissionBoundary: "真实支付必须由官方收银链路完成，并要求用户二次确认。",
     uiDisclosure: "本项目不会创建真实订单或扣款。"
+  }
+];
+
+export const dataSources: DataSourceRecord[] = [
+  {
+    id: "luckin-us-signature-lattes",
+    name: "Luckin Coffee US Signature Lattes",
+    kind: "official-menu",
+    sourceUrl: "https://www.luckincoffee.us/menu/signature-lattes",
+    lastChecked: "2026-07-20",
+    evidence: "官方菜单页面内嵌 menuData，包含 Coconut Latte、Velvet Latte 等商品名、描述和 CDN 图片 URL。",
+    canUseFor: ["商品英文名", "商品图片", "公开菜单描述", "视觉真实性"],
+    cannotUseFor: ["中国区实时价格", "中国区库存", "会员券包", "真实下单"]
+  },
+  {
+    id: "luckin-us-fruity-americano",
+    name: "Luckin Coffee US Fruity Americano",
+    kind: "official-menu",
+    sourceUrl: "https://www.luckincoffee.us/menu/fruity-americano",
+    lastChecked: "2026-07-20",
+    evidence: "官方菜单页面公开 Orange Americano、Pomelo Americano 等果咖商品与图片。",
+    canUseFor: ["果咖图片", "果咖品类命名", "公开菜单描述"],
+    cannotUseFor: ["中国区橙 C 美式实时售卖状态", "优惠规则", "门店库存"]
+  },
+  {
+    id: "luckin-us-single-origin-espresso",
+    name: "Luckin Coffee US Single Origin Espresso",
+    kind: "official-menu",
+    sourceUrl: "https://www.luckincoffee.us/menu/single-origin-espresso",
+    lastChecked: "2026-07-20",
+    evidence: "官方菜单页面公开 Yirgacheffe Americano、Latte、Flat White 等单品与图片。",
+    canUseFor: ["美式/澳瑞白类商品视觉", "公开菜单描述"],
+    cannotUseFor: ["中国区 SKU 精确映射", "实时价格", "实时库存"]
+  },
+  {
+    id: "luckin-us-app-site",
+    name: "Luckin Coffee US App / Stores",
+    kind: "official-site",
+    sourceUrl: "https://www.luckincoffee.us",
+    lastChecked: "2026-07-20",
+    evidence: "官网导航公开 Get the App、Menu、Stores；页脚说明 App 支持提前点单、优惠和会员权益。",
+    canUseFor: ["App 点单体验参照", "会员权益存在性参照", "门店入口参照"],
+    cannotUseFor: ["中国区会员登录", "真实支付授权", "实时排队 ETA"]
+  },
+  {
+    id: "browser-geolocation",
+    name: "Browser Geolocation API",
+    kind: "browser-api",
+    sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API",
+    lastChecked: "2026-07-20",
+    evidence: "浏览器定位只能在用户授权后读取；本 demo 只用授权结果触发附近门店/拒绝定位分支，不持久化精确坐标。",
+    canUseFor: ["授权体验", "附近门店排序触发", "拒绝授权 fallback"],
+    cannotUseFor: ["后台持续定位", "跨 App 轨迹", "真实瑞幸门店匹配"]
+  },
+  {
+    id: "synthetic-member-store",
+    name: "Synthetic member/store/order fixtures",
+    kind: "synthetic-demo",
+    lastChecked: "2026-07-20",
+    evidence: "本仓库 `src/data/demoData.ts` 内维护合成会员、券包、门店、库存和排队状态。",
+    canUseFor: ["Agent 架构演示", "隐私安全 demo", "离线评审"],
+    cannotUseFor: ["真实会员画像", "真实优惠券", "真实门店库存"]
+  },
+  {
+    id: "luckin-private-member-payment",
+    name: "Luckin private member/payment APIs",
+    kind: "blocked-private",
+    lastChecked: "2026-07-20",
+    evidence: "会员、券包、支付、扣券必须走官方授权登录和收银链路；本项目没有授权。",
+    canUseFor: ["接入方案说明", "权限边界说明"],
+    cannotUseFor: ["抓取会员数据", "代付", "扣券", "创建真实订单"]
+  }
+];
+
+export const adapterBlueprints: AdapterBlueprint[] = [
+  {
+    id: "official-menu-image-adapter",
+    name: "官方菜单图片 Snapshot Adapter",
+    status: "implemented-snapshot",
+    sourceIds: ["luckin-us-signature-lattes", "luckin-us-fruity-americano", "luckin-us-single-origin-espresso"],
+    reads: ["商品英文名", "商品描述", "官方 CDN 图片 URL"],
+    writes: ["本地 `CoffeeProduct.imageUrl` / `officialName` / `sourceNote`"],
+    permission: "只读取公开官网页面；不抓取登录态、不绕过接口。",
+    implementation: "把官方 US 菜单公开字段映射到 demo SKU，中文品名、价格、券和库存仍由本地 mock 控制。",
+    guardrail: "UI 必须标注图片来源；不得把 US 菜单价格或库存说成中国区实时。",
+    uiDisclosure: "图片为 Luckin Coffee US 官方菜单参考；本 demo 不代表中国区实时菜单。"
+  },
+  {
+    id: "geo-permission-adapter",
+    name: "定位授权与门店兜底 Adapter",
+    status: "ready-to-wire",
+    sourceIds: ["browser-geolocation", "synthetic-member-store"],
+    reads: ["用户点击授权/拒绝", "浏览器授权结果", "城市级门店 mock", "最近订单门店"],
+    writes: ["本轮 locationMode", "门店选择解释", "拒绝定位 fallback 文案"],
+    permission: "必须由用户点击触发；精确坐标只在内存中短暂使用，本 demo 不保存。",
+    implementation: "授权成功走附近门店说明；拒绝或失败走常购门店/城市级 mock；后续可替换成官方门店搜索 API。",
+    guardrail: "不能后台定位，不能保存轨迹，不能声称真实 ETA。",
+    uiDisclosure: "定位只用于本轮演示排序；拒绝后仍可用常购门店兜底。"
+  },
+  {
+    id: "member-benefit-adapter",
+    name: "会员权益 Adapter",
+    status: "blocked",
+    sourceIds: ["luckin-private-member-payment", "synthetic-member-store"],
+    reads: ["官方 OAuth 后的会员等级", "积分", "券包", "历史订单"],
+    writes: ["会员记忆", "券包解释", "复购触达频控"],
+    permission: "必须用户登录并授权瑞幸官方账号；当前无授权。",
+    implementation: "现阶段仅使用合成会员样本；真实接入时需要最小字段授权和可撤回同意。",
+    guardrail: "禁止抓包、爬取、伪造或导入真实个人会员信息。",
+    uiDisclosure: "当前会员是合成样本；真实会员能力处于 blocked。"
+  },
+  {
+    id: "order-payment-adapter",
+    name: "下单支付 Adapter",
+    status: "mock-only",
+    sourceIds: ["luckin-private-member-payment"],
+    reads: ["模拟订单草稿", "支付前确认状态"],
+    writes: ["本地 UI 状态", "支付前停止记录"],
+    permission: "真实支付必须由官方 App/小程序收银台和用户二次确认完成。",
+    implementation: "GUI-Agent 模拟只跑到支付前确认；不会创建订单、不会扣款、不会扣券。",
+    guardrail: "任何自动执行都必须在支付前停止。",
+    uiDisclosure: "本 demo 不下单、不扣款、不扣券。"
+  },
+  {
+    id: "store-fulfillment-adapter",
+    name: "门店履约 Adapter",
+    status: "ready-to-wire",
+    sourceIds: ["luckin-us-app-site", "synthetic-member-store"],
+    reads: ["门店列表", "营业状态", "库存", "排队", "取餐 ETA"],
+    writes: ["候选门店排序", "履约风险", "兜底计划"],
+    permission: "真实接入需官方门店/履约接口；没有接口时只展示估算。",
+    implementation: "当前使用城市 mock 门店与排队等级；后续 adapter 可替换为官方门店搜索和库存服务。",
+    guardrail: "门店 ETA 与库存必须标注为估算或官方来源。",
+    uiDisclosure: "当前 ETA/库存/排队是 demo 估算。"
   }
 ];
 
