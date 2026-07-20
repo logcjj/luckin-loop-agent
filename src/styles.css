@@ -678,7 +678,6 @@ body:has(.xm-shell.phone-frame) {
 .xm-shell.phone-frame .xm-brand-text,
 .xm-shell.phone-frame .xm-role,
 .xm-shell.phone-frame .xm-pill,
-.xm-shell.phone-frame .xm-view,
 .xm-shell.phone-frame .xm-rail,
 .xm-shell.phone-frame .xm-canvas {
   display: none;
@@ -689,7 +688,18 @@ body:has(.xm-shell.phone-frame) {
 }
 
 .xm-shell.phone-frame .xm-loc {
-  max-width: 210px;
+  max-width: 160px;
+}
+
+.xm-shell.phone-frame .xm-view {
+  margin-left: 0;
+  flex: 0 0 auto;
+}
+
+.xm-shell.phone-frame .xm-view button {
+  min-height: 30px;
+  padding-inline: 8px;
+  font-size: 12px;
 }
 
 .xm-shell.phone-frame .xm-chat {
@@ -730,6 +740,108 @@ body:has(.xm-shell.phone-frame) {
 .xm-tabbar button.active {
   color: var(--xm-blue);
   background: #eef5ff;
+}
+
+.xm-mobile-pane {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.xm-mobile-pane .xm-choice-grid {
+  grid-template-columns: 1fr;
+}
+
+.xm-mobile-pane .xm-card {
+  box-shadow: none;
+}
+
+.xm-merchant-center {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 16px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.xm-merchant-hero {
+  border: 1px solid #dce8ff;
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    linear-gradient(135deg, rgb(0 82 217 / 10%), transparent 60%),
+    #ffffff;
+  box-shadow: var(--xm-shadow);
+}
+
+.xm-merchant-hero span {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #063f9f;
+  background: #eef5ff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.xm-merchant-hero h1 {
+  margin: 10px 0 0;
+  font-size: 30px;
+  letter-spacing: 0;
+}
+
+.xm-merchant-hero p {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: #535d6b;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.xm-merchant-hero button {
+  min-height: 40px;
+  margin-top: 14px;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: var(--xm-blue);
+  font-weight: 850;
+}
+
+.xm-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.xm-metric {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--xm-line);
+  border-radius: 14px;
+  padding: 13px;
+  background: #ffffff;
+  box-shadow: var(--xm-shadow);
+}
+
+.xm-metric b {
+  color: var(--xm-blue);
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.xm-metric span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.xm-metric small {
+  overflow: hidden;
+  color: var(--xm-sub);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 * {
