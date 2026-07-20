@@ -73,6 +73,10 @@ function App() {
     if (typeof window !== "undefined" && window.innerWidth <= 760) return "phone";
     return "desktop";
   });
+  const [isCompactViewport, setIsCompactViewport] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 700px)").matches;
+  });
   const [running, setRunning] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [accepted, setAccepted] = useState(64);
@@ -84,6 +88,15 @@ function App() {
   const executionSteps = useMemo(() => buildExecutionSteps(member, scenario, decision), [member, scenario, decision]);
   const activeStep = executionSteps[Math.min(stepIndex, executionSteps.length - 1)];
   const acceptanceRate = Math.round((accepted / Math.max(accepted + dismissed, 1)) * 100);
+  const effectiveViewMode: ViewMode = isCompactViewport ? "phone" : viewMode;
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px)");
+    const syncViewport = () => setIsCompactViewport(media.matches);
+    syncViewport();
+    media.addEventListener("change", syncViewport);
+    return () => media.removeEventListener("change", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!running) return;
@@ -129,7 +142,7 @@ function App() {
   }
 
   return (
-    <main className={`product-shell view-${viewMode}`}>
+    <main className={`product-shell view-${effectiveViewMode}`}>
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">鹿</div>
@@ -225,7 +238,7 @@ function App() {
       </aside>
 
       <section className="workspace">
-        {viewMode === "phone" ? (
+        {effectiveViewMode === "phone" ? (
           <PhoneExperience
             member={member}
             scenario={scenario}

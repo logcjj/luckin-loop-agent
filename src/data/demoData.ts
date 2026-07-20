@@ -268,7 +268,7 @@ export const dataConnectors: DataConnector[] = [
     id: "payment",
     name: "下单与支付",
     status: "mocked",
-    dataScope: "模拟留位、模拟支付结果、模拟回写。",
+    dataScope: "模拟留位、支付前停止状态、模拟回写。",
     permissionBoundary: "真实支付必须由官方收银链路完成，并要求用户二次确认。",
     uiDisclosure: "本项目不会创建真实订单或扣款。"
   }

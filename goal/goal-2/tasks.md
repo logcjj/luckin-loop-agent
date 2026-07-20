@@ -116,12 +116,23 @@
 
 ## Task 6: 文档、演示脚本与交付包装
 
-- 状态：pending
+- 状态：completed
 - 可验证目标：
   - 更新 README/docs，体现架构深度、Agent 配置、演示路线、评估指标。
   - 与参考项目一样能让评审快速理解项目价值。
   - 所有文档与现有功能一致。
 - 完成记录：
+  - 重写 `README.md` 为更接近小满/HireEasy 参赛交付的结构：一句话定位、为什么需要、三幕体验、核心创新、架构、真实数据边界、快速开始、演示路径、目录与交付物。
+  - 重写 `docs/solution-brief.md`：补充命题理解、桌面 FlowNav、手机聊天起手、Agent 模块分工、真实数据 adapter、价值假设和与常规客服/推荐方案的差异。
+  - 重写 `docs/demo-walkthrough.md`：形成 3 分钟演示脚本，明确桌面工作台、手机聊天、自动执行弹窗、数据接入边界的讲解顺序。
+  - 更新 `docs/submission-copy.md`：报名表文案明确“手机端先聊天，点击执行后才进入模拟点单和链路弹窗”，并强调 GUI-Agent 只用于执行模块、支付前停止、真实数据边界。
+  - 根据用户最新纠偏，将 `goal/goal-2/input.md` 追加保存原始反馈，并把 `goal/goal-2/plan.md` 的旧验证项从“四页签/模拟支付”修正为六模块 FlowNav、手机聊天起手、执行链路弹窗与支付前停止。
+  - 修复实际手机视口 bug：`src/main.tsx` 新增 compact viewport 监听，窄屏强制使用 `PhoneExperience`，避免页面先渲染桌面工作台；桌面端仍保留网页/手机预览切换。
+  - 清理误导性支付文案：将 fallback action 从“停止模拟支付”改为“停止执行模拟”，将数据 connector 的 payment scope 改为“支付前停止状态”。
+  - 已执行 `npm run build`，TypeScript 与 Vite 生产构建通过。
+  - 已执行 `git diff --check` 通过。
+  - 已用 Playwright 390x844 验证：手机首屏为“小鹿 Agent”聊天、定位卡、商品方案卡和底部输入；点击“执行点单”后才进入模拟 App 大窗，并出现底部链路弹窗，显示 Step、Observe、Action；console warning/error 为 0。
+  - 自信检查：Task 6 的文档包装、报名文案、手机端纠偏和验证闭环已完成；`output/` 仅为本地截图验证产物，不提交。
 
 ## 大型全面检查 Debug 循环 B
 

@@ -325,7 +325,7 @@ function buildFallbackPlan(
 
   return {
     trigger: "用户犹豫、库存变化或需要二次确认",
-    action: "停止模拟支付，展示第二候选和人工可理解的换杯理由。",
+    action: "停止执行模拟，展示第二候选和人工可理解的换杯理由。",
     userCopy: `${recommendation.name} 已准备好模拟留位；如果你犹豫，我会保留甜温偏好并换一个更稳选择。`
   };
 }
