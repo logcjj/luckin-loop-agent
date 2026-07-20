@@ -96,6 +96,11 @@ export type AgentDecision = {
   memberMemory: string[];
   recommendation: ProductRecommendation;
   couponPlan: CouponPlan;
+  selectedStore: StoreStatus;
+  candidateScores: RecommendationScore[];
+  agentTrace: AgentTraceStep[];
+  guardrails: string[];
+  fallbackPlan: FallbackPlan;
   orderPath: string[];
   wakeupMessage: string;
   repurchasePlan: string;
@@ -105,6 +110,27 @@ export type AgentDecision = {
     wakeupLift: number;
     repurchaseCycleReduction: number;
   };
+};
+
+export type RecommendationScore = {
+  productId: string;
+  name: string;
+  score: number;
+  reasons: string[];
+  tradeoffs: string[];
+};
+
+export type AgentTraceStep = {
+  moduleId: string;
+  moduleName: string;
+  status: "used" | "guarded" | "fallback";
+  summary: string;
+};
+
+export type FallbackPlan = {
+  trigger: string;
+  action: string;
+  userCopy: string;
 };
 
 export type StoreStatus = {

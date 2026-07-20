@@ -16,12 +16,19 @@
 
 ## Task 2: Agent 决策逻辑升级
 
-- 状态：pending
+- 状态：completed
 - 可验证目标：
   - 将推荐从简单 keyword rule 升级为多信号评分。
   - 输出更完整的推荐解释、门店策略、券策略、风险边界和 fallback。
   - 所有面板数据与类型保持一致。
 - 完成记录：
+  - 在 `src/types.ts` 扩展 `AgentDecision`，新增 `selectedStore`、`candidateScores`、`agentTrace`、`guardrails`、`fallbackPlan`，保留旧 UI 依赖字段以避免破坏现有面板。
+  - 在 `src/logic/agent.ts` 将原本固定 product 的 keyword rule 升级为多信号评分：综合意图关键词、场景 trigger、会员偏好/避忌、最近订单、生命周期、价格敏感、甜度/温度、商品目录标签。
+  - 新增门店选择策略：按城市、距离、排队、ETA、库存提示、用户等待敏感度排序，并把门店理由写入信任解释。
+  - 新增券包策略：综合可用门槛、折扣、过期时间、价格敏感度，输出模拟到手价和解释。
+  - 新增 Agent trace、guardrail 和 fallback 输出，覆盖低置信度、排队/ETA、低糖解释、价格犹豫、真实支付/会员/库存边界。
+  - 已执行 `npm run build`，TypeScript 与 Vite 生产构建通过。
+  - 自信检查：当前 task 已完成“逻辑深度”目标；新增的真实商品图片、地理位置授权和页面深度展示已记录到后续 Task 3-5，不在本 task 中假装完成。
 
 ## Task 3: 首屏与内容显示升级
 
@@ -29,6 +36,7 @@
 - 可验证目标：
   - 优化桌面端首屏信息密度、层级和美术风格。
   - 新增业务闭环/Agent 配置/指标展示，使内容不空洞。
+  - 展示商品候选、Agent trace、门店策略、guardrail、fallback 等 Task 2 新字段。
   - 所有文字不溢出，按钮和卡片稳定。
 - 完成记录：
 
@@ -49,13 +57,15 @@
   - 手机端布局可用，不横向溢出。
   - rail、chat、canvas 在窄屏自然重排。
   - tab、输入框、快捷 prompt、卡片按钮均可触达。
+  - 手机端有明确的商品视觉、门店距离、授权/拒绝定位 fallback，不只是桌面布局缩小。
 - 完成记录：
 
-## Task 5: 真实信息接入边界与 adapter 设计
+## Task 5: 真实商品、图片、地理位置与 adapter 设计
 
 - 状态：pending
 - 可验证目标：
-  - 增加 mock adapter 或文档，说明如何接菜单、门店、券包、会员信息。
+  - 调研公开可用的瑞幸商品/品牌信息与图片来源，明确哪些可真实引用、哪些只能 mock。
+  - 增加 mock adapter 或文档，说明如何接菜单、门店、券包、会员信息、地理位置和商品图片。
   - 明确隐私、安全、授权和非真实支付边界。
   - UI 中不误导为真实下单。
 - 完成记录：
